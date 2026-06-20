@@ -5,6 +5,7 @@ import type { MenuOption } from "naive-ui";
 import { Activity, Database, FileText, HardDrive, Settings } from "lucide-vue-next";
 import { useServiceStore } from "./stores/service";
 import { useSettingsStore } from "./stores/settings";
+import type { Language } from "./utils/tauri";
 
 const route = useRoute();
 const serviceStore = useServiceStore();
@@ -36,6 +37,15 @@ const menuOptions = computed<MenuOption[]>(() =>
 
 const activeKey = computed(() => route.name?.toString() ?? "dashboard");
 const pageTitle = computed(() => settingsStore.t(activeKey.value));
+
+async function setLanguage(language: Language) {
+  if (settingsStore.config.language === language) {
+    return;
+  }
+
+  settingsStore.config.language = language;
+  await settingsStore.save();
+}
 
 onMounted(async () => {
   await settingsStore.load();
@@ -88,9 +98,27 @@ watch(
                 <p class="eyebrow">AList service manager</p>
                 <h1>{{ pageTitle }}</h1>
               </div>
-              <div class="toolbar-status">
-                <span class="status-dot" :class="serviceStore.statusKind"></span>
-                <span>{{ serviceStore.serviceStatusLabel }}</span>
+              <div class="toolbar-actions">
+                <n-button-group size="small">
+                  <n-button
+                    :type="settingsStore.config.language === 'zh-CN' ? 'primary' : 'default'"
+                    secondary
+                    @click="setLanguage('zh-CN')"
+                  >
+                    中
+                  </n-button>
+                  <n-button
+                    :type="settingsStore.config.language === 'en-US' ? 'primary' : 'default'"
+                    secondary
+                    @click="setLanguage('en-US')"
+                  >
+                    EN
+                  </n-button>
+                </n-button-group>
+                <div class="toolbar-status">
+                  <span class="status-dot" :class="serviceStore.statusKind"></span>
+                  <span>{{ serviceStore.serviceStatusLabel }}</span>
+                </div>
               </div>
             </header>
 

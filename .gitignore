@@ -1,6 +1,7 @@
 .agents/
 .claude/
 .reference/
+AList-Desktop-Plan.md
 
 alist-desktop/node_modules/
 alist-desktop/.yarn/install-state.gz

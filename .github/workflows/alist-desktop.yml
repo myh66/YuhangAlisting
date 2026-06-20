@@ -1,73 +1,126 @@
-name: AList Desktop CI
+name: AList Desktop
 
 on:
   push:
-    branches: [main, master]
+    branches: [main]
+    tags:
+      - "v*"
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   verify:
+    name: Verify
     runs-on: windows-latest
     defaults:
       run:
         working-directory: alist-desktop
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: yarn
           cache-dependency-path: alist-desktop/yarn.lock
-      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
       - name: Enable Corepack
         run: corepack enable
-      - name: Install frontend dependencies
+
+      - name: Install dependencies
         run: yarn install --immutable
+
       - name: Build frontend
         run: yarn build
+
       - name: Check Rust
         run: cargo check --manifest-path src-tauri/Cargo.toml
 
-  release-build:
-    if: github.event_name == 'workflow_dispatch'
+  release:
+    name: Release (${{ matrix.platform }})
+    needs: verify
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: windows-latest
-            bundles: nsis,msi
-          - os: macos-latest
-            bundles: dmg
-          - os: ubuntu-latest
-            bundles: appimage,deb
-    runs-on: ${{ matrix.os }}
+          - platform: windows-latest
+            args: "--bundles nsis,msi"
+          - platform: macos-latest
+            args: "--bundles dmg"
+          - platform: ubuntu-22.04
+            args: "--bundles appimage,deb"
+    runs-on: ${{ matrix.platform }}
     defaults:
       run:
         working-directory: alist-desktop
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: yarn
           cache-dependency-path: alist-desktop/yarn.lock
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Linux system dependencies
-        if: runner.os == 'Linux'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
       - name: Enable Corepack
         run: corepack enable
+
       - name: Install dependencies
         run: yarn install --immutable
-      - name: Download sidecar binaries
+
+      - name: Download sidecars
         run: yarn prebuild --force
-      - name: Build Tauri bundles
-        run: yarn tauri build --bundles ${{ matrix.bundles }} --ci
-      - name: Upload bundles
+
+      - name: Build and publish tagged release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: alist-desktop
+          tauriScript: yarn tauri
+          args: ${{ matrix.args }} --ci
+          tagName: ${{ github.ref_name }}
+          releaseName: "YuhangAlisting ${{ github.ref_name }}"
+          releaseBody: "See the assets below to download and install this version."
+          releaseDraft: true
+          prerelease: false
+          generateReleaseNotes: true
+          releaseAssetNamePattern: "[name]_[version]_[platform]_[arch][setup][ext]"
+
+      - name: Build manual artifacts
+        if: github.event_name == 'workflow_dispatch'
+        run: yarn tauri build ${{ matrix.args }} --ci
+
+      - name: Upload manual artifacts
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
-          name: alist-desktop-${{ runner.os }}
+          name: yuhang-alisting-${{ matrix.platform }}
           path: alist-desktop/src-tauri/target/release/bundle/**

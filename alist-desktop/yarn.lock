@@ -863,26 +863,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"alist-desktop@workspace:.":
-  version: 0.0.0-use.local
-  resolution: "alist-desktop@workspace:."
-  dependencies:
-    "@tauri-apps/api": "npm:^2"
-    "@tauri-apps/cli": "npm:^2"
-    "@tauri-apps/plugin-opener": "npm:^2"
-    "@vitejs/plugin-vue": "npm:^5.2.1"
-    "@vueuse/core": "npm:^14.3.0"
-    lucide-vue-next: "npm:^1.0.0"
-    naive-ui: "npm:^2.44.1"
-    pinia: "npm:^3.0.4"
-    typescript: "npm:~5.6.2"
-    vite: "npm:^6.0.3"
-    vue: "npm:^3.5.13"
-    vue-router: "npm:4"
-    vue-tsc: "npm:^2.1.10"
-  languageName: unknown
-  linkType: soft
-
 "async-validator@npm:^4.2.5":
   version: 4.2.5
   resolution: "async-validator@npm:4.2.5"
@@ -1729,3 +1709,23 @@ __metadata:
   checksum: 10c0/a499c81ce6d4a1d260d4ea0f6d49ab4da09681e32c3f0472dee16667ed69d01dae63a3b81745a24bd78476ec4fcf856114cb4896ace738e01da34b2c42235416
   languageName: node
   linkType: hard
+
+"yuhang-alisting@workspace:.":
+  version: 0.0.0-use.local
+  resolution: "yuhang-alisting@workspace:."
+  dependencies:
+    "@tauri-apps/api": "npm:^2"
+    "@tauri-apps/cli": "npm:^2"
+    "@tauri-apps/plugin-opener": "npm:^2"
+    "@vitejs/plugin-vue": "npm:^5.2.1"
+    "@vueuse/core": "npm:^14.3.0"
+    lucide-vue-next: "npm:^1.0.0"
+    naive-ui: "npm:^2.44.1"
+    pinia: "npm:^3.0.4"
+    typescript: "npm:~5.6.2"
+    vite: "npm:^6.0.3"
+    vue: "npm:^3.5.13"
+    vue-router: "npm:4"
+    vue-tsc: "npm:^2.1.10"
+  languageName: unknown
+  linkType: soft

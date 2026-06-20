@@ -1,7 +1,19 @@
 {
-  "name": "alist-desktop",
+  "name": "yuhang-alisting",
   "private": true,
   "version": "0.1.0",
+  "description": "Desktop AList manager and Rclone mount console built with Tauri.",
+  "license": "Apache-2.0",
+  "author": "myh66",
+  "homepage": "https://github.com/myh66/YuhangAlisting#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/myh66/YuhangAlisting.git",
+    "directory": "alist-desktop"
+  },
+  "bugs": {
+    "url": "https://github.com/myh66/YuhangAlisting/issues"
+  },
   "type": "module",
   "packageManager": "yarn@4.9.2",
   "scripts": {
@@ -12,7 +24,8 @@
     "preview": "vite preview",
     "tauri:check": "cargo check --manifest-path src-tauri/Cargo.toml",
     "tauri:debug-build": "tauri build --debug --no-bundle --ci",
-    "tauri:release": "yarn prebuild --force && tauri build --ci",
+    "release:local": "yarn prebuild --force && tauri build --ci",
+    "tauri:release": "yarn release:local",
     "tauri": "tauri"
   },
   "dependencies": {

@@ -31,3 +31,5 @@ alist-desktop/
 
 The generated binaries are intentionally ignored. Run `yarn prebuild` before
 local development or release builds.
+
+The repository license is Apache-2.0; see `../LICENSE`.

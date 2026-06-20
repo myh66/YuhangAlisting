@@ -22,6 +22,7 @@ YuhangAlisting is a desktop app for managing a local AList service and Rclone We
 - **Desktop experience**: tray menu, close-to-tray, startup options, light/dark themes.
 - **Chinese / English switch**: available in both the README and the desktop UI.
 - **Automated releases**: GitHub Actions builds Windows, macOS, and Linux installers.
+- **Complete community files**: code of conduct, contribution guide, security policy, and Apache-2.0 license.
 
 ## How It Works
 
@@ -111,6 +112,13 @@ See [docs/RELEASING.md](docs/RELEASING.md) for the full flow.
 - WinFsp cannot be embedded like a normal DLL because it installs a Windows file system driver. The app bundles the official MSI and launches it with UAC when needed.
 - The current UI follows OpenList Desktop's information architecture and uses a compact native Apple-style visual language.
 
+## Community
+
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Contributing](CONTRIBUTING.md)
+- [Security Policy](SECURITY.md)
+- [Release Guide](docs/RELEASING.md)
+
 ## License
 
-This repository does not currently declare a license.
+This project is licensed under the [Apache License 2.0](LICENSE).

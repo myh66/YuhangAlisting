@@ -1,10 +1,12 @@
 use crate::{
-    services::alist_manager::{resolve_alist_binary_path, resolve_rclone_binary_path},
+    services::alist_manager::{
+        bundled_binary_path, resolve_alist_binary_path, resolve_rclone_binary_path,
+    },
     AppState,
 };
 use serde::Serialize;
 use std::path::{Path, PathBuf};
-use tauri::{Manager, State};
+use tauri::State;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -125,15 +127,8 @@ fn winfsp_installed() -> bool {
 fn bundled_winfsp_installer(app: &tauri::AppHandle) -> Option<PathBuf> {
     let file_name = "winfsp.msi";
 
-    if let Ok(resource_dir) = app.path().resource_dir() {
-        for candidate in [
-            resource_dir.join("binaries").join(file_name),
-            resource_dir.join(file_name),
-        ] {
-            if candidate.exists() {
-                return Some(candidate);
-            }
-        }
+    if let Some(installer) = bundled_binary_path(app, file_name) {
+        return Some(installer);
     }
 
     let fallback = std::env::current_dir()

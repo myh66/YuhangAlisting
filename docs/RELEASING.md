@@ -1,8 +1,14 @@
 # Releasing YuhangAlisting
 
-This project uses GitHub Actions to build desktop installers.
+Desktop builds are produced by `.github/workflows/alist-desktop.yml`.
 
-## Normal Release
+## Manual Build Artifacts
+
+Use **Actions -> YuhangAlisting -> Run workflow** to build packages without a
+tag. Manual builds upload workflow artifacts for Windows, macOS, and Linux.
+They do not create a GitHub Release.
+
+## Tagged GitHub Release
 
 1. Update the version in:
    - `alist-desktop/package.json`
@@ -16,7 +22,7 @@ This project uses GitHub Actions to build desktop installers.
    git commit -m "chore: release v0.1.0"
    ```
 
-3. Create and push a version tag:
+3. Create and push a semver tag:
 
    ```bash
    git tag v0.1.0
@@ -24,21 +30,10 @@ This project uses GitHub Actions to build desktop installers.
    git push origin v0.1.0
    ```
 
-4. GitHub Actions runs the `release` job for:
-   - `windows-latest`
-   - `macos-latest`
-   - `ubuntu-22.04`
+4. GitHub Actions creates a draft GitHub Release with generated notes and
+   installer assets.
 
-5. The workflow creates a draft GitHub Release and uploads the generated
-   installers. Review the draft release notes, then publish it.
-
-## Manual Build Artifacts
-
-Use **Actions -> AList Desktop -> Run workflow** to build installers without a
-tag. Manual builds upload workflow artifacts only; they do not create a GitHub
-Release.
-
-## Local Release Smoke Test
+## Local Smoke Test
 
 ```bash
 cd alist-desktop

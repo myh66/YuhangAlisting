@@ -150,10 +150,10 @@ async function checkUpdates() {
       </n-space>
     </n-card>
 
-    <n-card title="Windows 挂载驱动" :bordered="true">
+    <n-card v-if="winfsp?.required" title="Windows 挂载驱动" :bordered="true">
       <n-descriptions :column="1" bordered size="small">
         <n-descriptions-item label="是否需要">
-          {{ winfsp?.required ? "Windows 盘符挂载需要 WinFsp" : "当前系统不需要" }}
+          Windows 盘符挂载需要 WinFsp
         </n-descriptions-item>
         <n-descriptions-item label="安装状态">
           {{ winfsp?.installed ? "已安装" : "未安装" }}

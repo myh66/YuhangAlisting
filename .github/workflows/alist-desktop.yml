@@ -13,8 +13,12 @@ permissions:
 
 jobs:
   verify:
-    name: Verify
-    runs-on: windows-latest
+    name: Verify (${{ matrix.platform }})
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [windows-latest, macos-latest, ubuntu-22.04]
+    runs-on: ${{ matrix.platform }}
     defaults:
       run:
         working-directory: alist-desktop
@@ -31,6 +35,16 @@ jobs:
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf
 
       - name: Enable Corepack
         run: corepack enable
@@ -57,7 +71,7 @@ jobs:
           - platform: windows-latest
             args: "--bundles nsis,msi"
           - platform: macos-latest
-            args: "--bundles dmg"
+            args: "--bundles app,dmg"
           - platform: ubuntu-22.04
             args: "--bundles appimage,deb"
     runs-on: ${{ matrix.platform }}
@@ -97,26 +111,34 @@ jobs:
       - name: Download sidecars
         run: yarn prebuild --force
 
-      - name: Build and publish tagged release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: tauri-apps/tauri-action@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          projectPath: alist-desktop
-          tauriScript: yarn tauri
-          args: ${{ matrix.args }} --ci
-          tagName: ${{ github.ref_name }}
-          releaseName: "YuhangAlisting ${{ github.ref_name }}"
-          releaseBody: "See the assets below to download and install this version."
-          releaseDraft: true
-          prerelease: false
-          generateReleaseNotes: true
-          releaseAssetNamePattern: "[name]_[version]_[platform]_[arch][setup][ext]"
-
-      - name: Build manual artifacts
-        if: github.event_name == 'workflow_dispatch'
+      - name: Build desktop bundles
         run: yarn tauri build ${{ matrix.args }} --ci
+
+      - name: Normalize macOS app signature
+        if: matrix.platform == 'macos-latest'
+        run: codesign --force --deep --sign - src-tauri/target/release/bundle/macos/YuhangAlisting.app
+
+      - name: Zip macOS app bundle
+        if: matrix.platform == 'macos-latest'
+        run: |
+          cd src-tauri/target/release/bundle/macos
+          ditto -c -k --sequesterRsrc --keepParent YuhangAlisting.app YuhangAlisting_${{ github.ref_name || github.run_number }}_aarch64.app.zip
+
+      - name: Publish tagged release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          prerelease: false
+          generate_release_notes: true
+          name: YuhangAlisting ${{ github.ref_name }}
+          files: |
+            alist-desktop/src-tauri/target/release/bundle/dmg/*.dmg
+            alist-desktop/src-tauri/target/release/bundle/macos/*.zip
+            alist-desktop/src-tauri/target/release/bundle/nsis/*.exe
+            alist-desktop/src-tauri/target/release/bundle/msi/*.msi
+            alist-desktop/src-tauri/target/release/bundle/appimage/*.AppImage
+            alist-desktop/src-tauri/target/release/bundle/deb/*.deb
 
       - name: Upload manual artifacts
         if: github.event_name == 'workflow_dispatch'

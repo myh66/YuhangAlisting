@@ -2,7 +2,8 @@
 import { computed, h, onMounted, onUnmounted, watch } from "vue";
 import { RouterLink, RouterView, useRoute } from "vue-router";
 import type { MenuOption } from "naive-ui";
-import { Activity, Database, FileText, HardDrive, Settings } from "lucide-vue-next";
+import { Activity, FileText, HardDrive, Settings } from "lucide-vue-next";
+import appIcon from "./assets/app-icon.png";
 import { useServiceStore } from "./stores/service";
 import { useSettingsStore } from "./stores/settings";
 import type { Language } from "./utils/tauri";
@@ -78,15 +79,9 @@ watch(
       <n-dialog-provider>
         <div class="app-shell">
           <aside class="app-sidebar">
-            <div class="traffic-lights" aria-hidden="true">
-              <span class="traffic red"></span>
-              <span class="traffic yellow"></span>
-              <span class="traffic green"></span>
-            </div>
-
             <div class="brand">
               <div class="brand-mark">
-                <Database :size="18" />
+                <img :src="appIcon" alt="" />
               </div>
               <div>
                 <strong>YuhangAlisting</strong>

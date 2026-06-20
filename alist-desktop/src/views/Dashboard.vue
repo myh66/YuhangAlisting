@@ -23,6 +23,12 @@ const allReady = computed(
     (!readiness.value?.winfspRequired || readiness.value?.winfspInstalled),
 );
 
+const readinessStepDescription = computed(() =>
+  readiness.value?.winfspRequired
+    ? "确认 AList、Rclone、WinFsp 状态"
+    : "确认 AList、Rclone 状态",
+);
+
 onMounted(async () => {
   await Promise.all([serviceStore.refresh(), mountStore.refresh(), refreshReadiness()]);
 });
@@ -117,7 +123,7 @@ async function confirmAutoMount() {
 
       <n-card title="快速流程" :bordered="true">
         <n-steps vertical size="small" :current="serviceStore.isRunning ? 2 : 1">
-          <n-step title="准备环境" description="确认 AList、Rclone、WinFsp 状态" />
+          <n-step title="准备环境" :description="readinessStepDescription" />
           <n-step title="启动 AList" description="运行本地 WebDAV 服务并健康检查" />
           <n-step title="创建挂载" description="配置 AList 路径和本地盘符或目录" />
           <n-step title="挂载到本地" description="输入 admin 密码后交给 Rclone 挂载" />
@@ -161,16 +167,14 @@ async function confirmAutoMount() {
           <span>{{ readiness?.rcloneBinaryReady ? "已就绪" : "未找到" }}</span>
           <small>{{ readiness?.rcloneBinaryPath }}</small>
         </div>
-        <div class="check-item" :class="{ ok: !readiness?.winfspRequired || readiness?.winfspInstalled }">
+        <div
+          v-if="readiness?.winfspRequired"
+          class="check-item"
+          :class="{ ok: readiness?.winfspInstalled }"
+        >
           <strong>Windows 挂载驱动</strong>
           <span>
-            {{
-              !readiness?.winfspRequired
-                ? "不需要"
-                : readiness?.winfspInstalled
-                  ? "WinFsp 已安装"
-                  : "需要安装 WinFsp"
-            }}
+            {{ readiness?.winfspInstalled ? "WinFsp 已安装" : "需要安装 WinFsp" }}
           </span>
           <small>{{ readiness?.winfspInstallerPath ?? "随安装包提供或运行 prebuild 获取" }}</small>
         </div>

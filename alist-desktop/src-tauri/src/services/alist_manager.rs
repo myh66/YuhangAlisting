@@ -450,15 +450,8 @@ pub fn resolve_alist_binary_path(app: &AppHandle, config: &AppConfig) -> PathBuf
 
     let file_name = binary_name("alist");
 
-    if let Ok(resource_dir) = app.path().resource_dir() {
-        for resource_binary in [
-            resource_dir.join("binaries").join(&file_name),
-            resource_dir.join(&file_name),
-        ] {
-            if resource_binary.exists() {
-                return resource_binary;
-            }
-        }
+    if let Some(resource_binary) = bundled_binary_path(app, &file_name) {
+        return resource_binary;
     }
 
     fallback_project_root().join("binaries").join(file_name)
@@ -475,18 +468,23 @@ pub fn resolve_rclone_binary_path(app: &AppHandle, config: &AppConfig) -> PathBu
 
     let file_name = binary_name("rclone");
 
-    if let Ok(resource_dir) = app.path().resource_dir() {
-        for resource_binary in [
-            resource_dir.join("binaries").join(&file_name),
-            resource_dir.join(&file_name),
-        ] {
-            if resource_binary.exists() {
-                return resource_binary;
-            }
-        }
+    if let Some(resource_binary) = bundled_binary_path(app, &file_name) {
+        return resource_binary;
     }
 
     fallback_project_root().join("binaries").join(file_name)
+}
+
+pub fn bundled_binary_path(app: &AppHandle, file_name: &str) -> Option<PathBuf> {
+    let resource_dir = app.path().resource_dir().ok()?;
+
+    [
+        resource_dir.join("_up_").join("binaries").join(file_name),
+        resource_dir.join("binaries").join(file_name),
+        resource_dir.join(file_name),
+    ]
+    .into_iter()
+    .find(|candidate| candidate.exists())
 }
 
 fn binary_name(base: &str) -> String {

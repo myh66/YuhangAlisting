@@ -1,0 +1,14 @@
+.agents/
+.claude/
+.reference/
+
+alist-desktop/node_modules/
+alist-desktop/.yarn/install-state.gz
+alist-desktop/dist/
+alist-desktop/src-tauri/target/
+alist-desktop/binaries/*
+!alist-desktop/binaries/.gitkeep
+
+*.log
+*.local
+.DS_Store

@@ -1,7 +1,7 @@
 {
   "name": "yuhang-alisting",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.10.0",
   "description": "Desktop AList manager and Rclone mount console built with Tauri.",
   "license": "Apache-2.0",
   "author": "myh66",

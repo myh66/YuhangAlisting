@@ -7,6 +7,7 @@ import ServiceCard from "../components/ServiceCard.vue";
 import { useMountStore } from "../stores/mounts";
 import { useServiceStore } from "../stores/service";
 import { useSettingsStore } from "../stores/settings";
+import { getCachedAdminPassword, setCachedAdminPassword } from "../utils/passwordCache";
 import { systemApi, type RuntimeReadiness } from "../utils/tauri";
 
 const serviceStore = useServiceStore();
@@ -77,6 +78,7 @@ async function confirmAutoMount() {
   }
 
   try {
+    setCachedAdminPassword(passwordValue.value);
     await mountStore.mountAuto(passwordValue.value);
     passwordModalVisible.value = false;
     passwordValue.value = "";
@@ -84,6 +86,11 @@ async function confirmAutoMount() {
   } catch (err) {
     message.error(err instanceof Error ? err.message : String(err));
   }
+}
+
+function openAutoMountPassword() {
+  passwordValue.value = getCachedAdminPassword();
+  passwordModalVisible.value = true;
 }
 
 function mountStatusLabel(status: string) {
@@ -160,7 +167,7 @@ function mountStatusLabel(status: string) {
             <template #icon><Play :size="16" /></template>
             {{ settingsStore.t("dashboard.action.start") }}
           </n-button>
-          <n-button block secondary :disabled="!serviceStore.isRunning" @click="passwordModalVisible = true">
+          <n-button block secondary :disabled="!serviceStore.isRunning" @click="openAutoMountPassword">
             {{ settingsStore.t("dashboard.action.mountAuto") }}
           </n-button>
         </n-space>
@@ -240,8 +247,12 @@ function mountStatusLabel(status: string) {
       </n-table>
     </n-card>
 
-    <n-modal v-model:show="passwordModalVisible" preset="card" :title="settingsStore.t('dashboard.passwordModal.title')" class="password-modal">
-      <n-space vertical>
+    <n-modal v-model:show="passwordModalVisible" :mask-closable="false">
+      <section class="app-dialog wide">
+        <header class="app-dialog-header">
+          <h2>{{ settingsStore.t("dashboard.passwordModal.title") }}</h2>
+          <n-button quaternary circle @click="passwordModalVisible = false">×</n-button>
+        </header>
         <n-input
           v-model:value="passwordValue"
           type="password"
@@ -252,11 +263,11 @@ function mountStatusLabel(status: string) {
         <n-alert type="info" :show-icon="false">
           {{ settingsStore.t("dashboard.passwordModal.hint") }}
         </n-alert>
-        <n-space justify="end">
+        <footer class="app-dialog-actions">
           <n-button secondary @click="passwordModalVisible = false">{{ settingsStore.t("common.cancel") }}</n-button>
           <n-button type="primary" @click="confirmAutoMount">{{ settingsStore.t("dashboard.passwordModal.confirm") }}</n-button>
-        </n-space>
-      </n-space>
+        </footer>
+      </section>
     </n-modal>
   </div>
 </template>
@@ -266,7 +277,4 @@ function mountStatusLabel(status: string) {
   margin-top: 16px;
 }
 
-.password-modal {
-  width: min(460px, calc(100vw - 32px));
-}
 </style>

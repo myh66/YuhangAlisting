@@ -3,7 +3,7 @@ use crate::{
         alist_manager::{bundled_binary_path, resolve_alist_binary_path, resolve_rclone_binary_path},
         process::hide_std_command_window,
     },
-    AppState,
+    shutdown_app, AppState,
 };
 use serde::Serialize;
 use std::path::{Path, PathBuf};
@@ -102,7 +102,7 @@ pub async fn hide_main_window(state: State<'_, AppState>) -> Result<(), String> 
 
 #[tauri::command]
 pub async fn exit_app(state: State<'_, AppState>) -> Result<(), String> {
-    state.app.exit(0);
+    shutdown_app(state.app.clone()).await;
     Ok(())
 }
 

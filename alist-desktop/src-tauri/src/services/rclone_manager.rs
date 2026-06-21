@@ -7,7 +7,11 @@ use crate::{
     },
 };
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, path::PathBuf, process::Stdio};
+use std::{
+    collections::{HashMap, HashSet},
+    path::PathBuf,
+    process::Stdio,
+};
 use tauri::AppHandle;
 use tokio::{
     io::{AsyncBufReadExt, AsyncRead, BufReader},
@@ -69,6 +73,8 @@ pub struct RcloneManager {
     mounts: HashMap<String, MountInstance>,
     rclone_path: PathBuf,
     mounts_path: PathBuf,
+    recent_targets_path: PathBuf,
+    recent_targets: Vec<String>,
     alist_port: u16,
 }
 
@@ -81,7 +87,9 @@ struct MountInstance {
 impl RcloneManager {
     pub fn new(app: AppHandle, logs: SharedLogBuffer, config: &AppConfig) -> Self {
         let mounts_path = app_data_dir(&app).join("mounts.json");
+        let recent_targets_path = app_data_dir(&app).join("recent_mount_targets.json");
         let configs = read_mounts(&mounts_path);
+        let recent_targets = read_json_vec(&recent_targets_path);
         let rclone_path = resolve_rclone_binary_path(&app, config);
 
         Self {
@@ -91,6 +99,8 @@ impl RcloneManager {
             mounts: HashMap::new(),
             rclone_path,
             mounts_path,
+            recent_targets_path,
+            recent_targets,
             alist_port: config.alist_port,
         }
     }
@@ -120,6 +130,7 @@ impl RcloneManager {
             return Err(format!("mount id already exists: {}", config.id));
         }
 
+        self.remember_mount_target(&config.local_path)?;
         self.configs.push(config.clone());
         self.flush()?;
         Ok(self.to_mount_info(&config))
@@ -152,6 +163,7 @@ impl RcloneManager {
         }
 
         self.configs[existing_index] = config.clone();
+        self.remember_mount_target(&config.local_path)?;
         self.flush()?;
         Ok(self.to_mount_info(&config))
     }
@@ -181,6 +193,7 @@ impl RcloneManager {
 
         self.ensure_rclone_binary_exists()?;
         validate_mount_target(&config.local_path)?;
+        self.remember_mount_target(&config.local_path)?;
         self.release_stale_mount_target(&config).await;
 
         if let Some(instance) = self.mounts.get(id) {
@@ -204,6 +217,7 @@ impl RcloneManager {
         .await;
 
         let obscured_password = self.obscure_password(password).await?;
+        let mount_target = rclone_mount_target(&config.local_path);
         let mut command = Command::new(&self.rclone_path);
         command
             .arg("mount")
@@ -211,7 +225,7 @@ impl RcloneManager {
                 ":webdav:{}",
                 normalized_remote_path(&config.remote_path)
             ))
-            .arg(&config.local_path)
+            .arg(&mount_target)
             .arg("--webdav-url")
             .arg(format!("http://127.0.0.1:{}/dav", self.alist_port))
             .arg("--webdav-user")
@@ -226,6 +240,7 @@ impl RcloneManager {
             .arg(&config.vfs_cache_max_age)
             .arg("--dir-cache-time")
             .arg("5m")
+            .arg("--links")
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
 
@@ -297,6 +312,8 @@ impl RcloneManager {
     }
 
     pub async fn unmount(&mut self, id: &str) -> Result<Vec<MountInfo>, String> {
+        let config = self.configs.iter().find(|config| config.id == id).cloned();
+
         if let Some(mut instance) = self.mounts.remove(id) {
             if let Some(mut child) = instance.process.take() {
                 child
@@ -314,6 +331,10 @@ impl RcloneManager {
                 format!("Unmounted {id}"),
             )
             .await;
+        }
+
+        if let Some(config) = config {
+            self.cleanup_mount_target(&config).await;
         }
 
         self.list().await
@@ -435,6 +456,31 @@ impl RcloneManager {
         std::fs::write(&self.mounts_path, json).map_err(|err| format!("write mounts failed: {err}"))
     }
 
+    fn remember_mount_target(&mut self, local_path: &str) -> Result<(), String> {
+        let target = normalize_local_target(local_path);
+
+        if target.is_empty() {
+            return Ok(());
+        }
+
+        self.recent_targets.retain(|item| item != &target);
+        self.recent_targets.insert(0, target);
+        self.recent_targets.truncate(12);
+        self.flush_recent_targets()
+    }
+
+    fn flush_recent_targets(&self) -> Result<(), String> {
+        if let Some(parent) = self.recent_targets_path.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|err| format!("create mount target history dir failed: {err}"))?;
+        }
+
+        let json = serde_json::to_string_pretty(&self.recent_targets)
+            .map_err(|err| format!("serialize mount target history failed: {err}"))?;
+        std::fs::write(&self.recent_targets_path, json)
+            .map_err(|err| format!("write mount target history failed: {err}"))
+    }
+
     fn ensure_rclone_binary_exists(&self) -> Result<(), String> {
         if self.rclone_path.exists() {
             Ok(())
@@ -477,9 +523,8 @@ impl RcloneManager {
                 return;
             }
 
-            let volume_name = windows_volume_name(config);
             let _ = run_std_command("net", &["use", &config.local_path, "/delete", "/y"]);
-            let _ = volume_name;
+            self.kill_stale_rclone_processes().await;
         }
 
         #[cfg(not(target_os = "windows"))]
@@ -489,14 +534,78 @@ impl RcloneManager {
     }
 
     async fn cleanup_failed_mount_target(&mut self, config: &MountConfig) {
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+
+        let _ = self.unmount(&config.id).await;
+        self.cleanup_mount_target(config).await;
+        self.kill_stale_rclone_processes().await;
+    }
+
+    async fn cleanup_mount_target(&self, config: &MountConfig) {
         #[cfg(target_os = "windows")]
         {
-            if is_windows_drive_letter(&config.local_path) {
-                let _ = run_std_command("net", &["use", &config.local_path, "/delete", "/y"]);
+            for target in self.cleanup_targets(Some(config)) {
+                let _ = run_std_command("net", &["use", &target, "/delete", "/y"]);
+                let drive_root = format!("{target}\\");
+                let _ = run_std_command("net", &["use", &drive_root, "/delete", "/y"]);
             }
         }
 
-        let _ = self.unmount(&config.id).await;
+        #[cfg(not(target_os = "windows"))]
+        {
+            let _ = config;
+        }
+    }
+
+    pub async fn cleanup_stale_processes(&self) {
+        #[cfg(target_os = "windows")]
+        {
+            for target in self.cleanup_targets(None) {
+                let _ = run_std_command("net", &["use", &target, "/delete", "/y"]);
+                let drive_root = format!("{target}\\");
+                let _ = run_std_command("net", &["use", &drive_root, "/delete", "/y"]);
+            }
+        }
+
+        self.kill_stale_rclone_processes().await;
+    }
+
+    async fn kill_stale_rclone_processes(&self) {
+        #[cfg(target_os = "windows")]
+        {
+            kill_processes_by_exe_path(&self.rclone_path);
+        }
+
+        #[cfg(not(target_os = "windows"))]
+        {}
+    }
+
+    #[cfg(target_os = "windows")]
+    fn cleanup_targets(&self, config: Option<&MountConfig>) -> Vec<String> {
+        let mut seen = HashSet::new();
+        let mut targets = Vec::new();
+
+        let mut push_target = |local_path: &str| {
+            let target = normalize_local_target(local_path);
+
+            if is_windows_drive_letter(&target) && seen.insert(target.clone()) {
+                targets.push(target);
+            }
+        };
+
+        if let Some(config) = config {
+            push_target(&config.local_path);
+        }
+
+        for config in &self.configs {
+            push_target(&config.local_path);
+        }
+
+        for target in &self.recent_targets {
+            push_target(target);
+        }
+
+        targets
     }
 }
 
@@ -518,6 +627,13 @@ fn read_mounts(path: &PathBuf) -> Vec<MountConfig> {
         .unwrap_or_default()
 }
 
+fn read_json_vec(path: &PathBuf) -> Vec<String> {
+    std::fs::read_to_string(path)
+        .ok()
+        .and_then(|content| serde_json::from_str(&content).ok())
+        .unwrap_or_default()
+}
+
 fn normalize_mount_config(config: &mut MountConfig) {
     config.name = config.name.trim().to_string();
     config.remote_path = normalized_remote_path(&config.remote_path);
@@ -530,6 +646,19 @@ fn normalize_mount_config(config: &mut MountConfig) {
     if config.vfs_cache_max_age.trim().is_empty() {
         config.vfs_cache_max_age = "1h".to_string();
     }
+}
+
+fn normalize_local_target(local_path: &str) -> String {
+    let trimmed = local_path.trim();
+
+    #[cfg(target_os = "windows")]
+    {
+        if is_windows_drive_letter(trimmed) {
+            return format!("{}:", trimmed.chars().next().unwrap().to_ascii_uppercase());
+        }
+    }
+
+    trimmed.to_string()
 }
 
 fn validate_mount_config(config: &MountConfig) -> Result<(), String> {
@@ -580,6 +709,17 @@ fn prepare_mount_target(local_path: &str) -> Result<(), String> {
     }
 
     std::fs::create_dir_all(local_path).map_err(|err| format!("create mount target failed: {err}"))
+}
+
+fn rclone_mount_target(local_path: &str) -> String {
+    #[cfg(target_os = "windows")]
+    {
+        if is_windows_drive_letter(local_path) {
+            return format!("{}\\", local_path.trim());
+        }
+    }
+
+    local_path.to_string()
 }
 
 fn normalized_remote_path(remote_path: &str) -> String {
@@ -694,4 +834,24 @@ fn run_std_command(program: &str, args: &[&str]) -> Result<(), String> {
     } else {
         Err(format!("{program} exited with status {status}"))
     }
+}
+
+#[cfg(target_os = "windows")]
+fn kill_processes_by_exe_path(exe_path: &PathBuf) {
+    let escaped_path = exe_path.to_string_lossy().replace('\'', "''");
+    let script = format!(
+        "$target = '{}'; Get-CimInstance Win32_Process -Filter \"name = 'rclone.exe'\" | Where-Object {{ $_.ExecutablePath -eq $target }} | ForEach-Object {{ Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }}",
+        escaped_path
+    );
+
+    let _ = run_std_command(
+        "powershell.exe",
+        &[
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-Command",
+            &script,
+        ],
+    );
 }

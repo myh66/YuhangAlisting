@@ -20,6 +20,18 @@ pub struct AppState {
     pub rclone: Mutex<RcloneManager>,
 }
 
+pub async fn shutdown_app(app: tauri::AppHandle) {
+    {
+        let state = app.state::<AppState>();
+        let mut rclone = state.rclone.lock().await;
+        let _ = rclone.unmount_all().await;
+        rclone.cleanup_stale_processes().await;
+        let _ = state.alist.lock().await.stop().await;
+    }
+
+    app.exit(0);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -99,7 +111,7 @@ pub fn run() {
                                     let _ = window.hide();
                                 }
                             }
-                            CloseAction::Exit => app.exit(0),
+                            CloseAction::Exit => shutdown_app(app).await,
                             CloseAction::Ask => {
                                 let _ = app.emit("app-close-requested", ());
                             }

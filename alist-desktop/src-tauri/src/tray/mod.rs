@@ -1,4 +1,4 @@
-use crate::AppState;
+use crate::{shutdown_app, AppState};
 use tauri::{
     menu::MenuBuilder,
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
@@ -37,7 +37,12 @@ pub fn setup_tray(app: &mut App<Wry>) -> tauri::Result<()> {
                     let _ = state.alist.lock().await.stop().await;
                 });
             }
-            "quit" => app.exit(0),
+            "quit" => {
+                let app = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    shutdown_app(app).await;
+                });
+            }
             _ => {}
         })
         .on_tray_icon_event(|tray, event| match event {

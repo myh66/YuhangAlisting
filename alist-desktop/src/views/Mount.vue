@@ -5,9 +5,11 @@ import { FolderOpen, Plus, RefreshCcw, Save, Trash2 } from "lucide-vue-next";
 import {
   cacheModeOptions,
   createEmptyMount,
+  getLastLocalPath,
   useMountStore,
 } from "../stores/mounts";
 import { useSettingsStore } from "../stores/settings";
+import { getCachedAdminPassword, setCachedAdminPassword } from "../utils/passwordCache";
 import type { MountConfig, MountInfo } from "../utils/tauri";
 
 const mountStore = useMountStore();
@@ -23,7 +25,7 @@ const pendingMountId = ref<string | null>(null);
 
 onMounted(async () => {
   await mountStore.refresh();
-  form.value = createEmptyMount(mountStore.platform?.defaultMountHint ?? "Z:");
+  form.value = createEmptyMount(getDefaultLocalPath());
 });
 
 function editMount(mount: MountInfo) {
@@ -41,7 +43,11 @@ function editMount(mount: MountInfo) {
 }
 
 function resetForm() {
-  form.value = createEmptyMount(mountStore.platform?.defaultMountHint ?? "Z:");
+  form.value = createEmptyMount(getDefaultLocalPath());
+}
+
+function getDefaultLocalPath() {
+  return getLastLocalPath(mountStore.platform?.defaultMountHint ?? "Z:");
 }
 
 async function saveMount() {
@@ -102,13 +108,13 @@ async function runMountAction(action: () => Promise<void>) {
 
 function mountWithPassword(id: string) {
   pendingMountId.value = id;
-  passwordValue.value = "";
+  passwordValue.value = getCachedAdminPassword();
   passwordModalVisible.value = true;
 }
 
 function mountAutoWithPassword() {
   pendingMountId.value = null;
-  passwordValue.value = "";
+  passwordValue.value = getCachedAdminPassword();
   passwordModalVisible.value = true;
 }
 
@@ -119,6 +125,8 @@ async function confirmMountPassword() {
   }
 
   await runMountAction(async () => {
+    setCachedAdminPassword(passwordValue.value);
+
     if (pendingMountId.value) {
       await mountStore.mount(pendingMountId.value, passwordValue.value);
     } else {
@@ -255,8 +263,12 @@ function statusLabel(status: MountInfo["status"]) {
       </n-form>
     </n-card>
 
-    <n-modal v-model:show="passwordModalVisible" preset="card" :title="settingsStore.t('mount.passwordModal.title')" class="password-modal">
-      <n-space vertical>
+    <n-modal v-model:show="passwordModalVisible" :mask-closable="false">
+      <section class="app-dialog wide">
+        <header class="app-dialog-header">
+          <h2>{{ settingsStore.t("mount.passwordModal.title") }}</h2>
+          <n-button quaternary circle @click="passwordModalVisible = false">×</n-button>
+        </header>
         <n-input
           v-model:value="passwordValue"
           type="password"
@@ -267,13 +279,13 @@ function statusLabel(status: MountInfo["status"]) {
         <n-alert type="info" :show-icon="false">
           {{ settingsStore.t("mount.passwordModal.hint") }}
         </n-alert>
-        <n-space justify="end">
+        <footer class="app-dialog-actions">
           <n-button secondary @click="passwordModalVisible = false">{{ settingsStore.t("common.cancel") }}</n-button>
           <n-button type="primary" @click="confirmMountPassword">
             {{ pendingMountId ? settingsStore.t("mount.passwordModal.confirmSingle") : settingsStore.t("mount.passwordModal.confirmAuto") }}
           </n-button>
-        </n-space>
-      </n-space>
+        </footer>
+      </section>
     </n-modal>
   </div>
 </template>
@@ -289,7 +301,4 @@ function statusLabel(status: MountInfo["status"]) {
   font-size: 12px;
 }
 
-.password-modal {
-  width: min(460px, calc(100vw - 32px));
-}
 </style>

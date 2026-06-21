@@ -9,6 +9,20 @@ import {
   type PlatformInfo,
 } from "../utils/tauri";
 
+const LAST_LOCAL_PATH_KEY = "yuhang-alisting:last-mount-local-path";
+
+export function getLastLocalPath(defaultLocalPath = "Z:") {
+  return localStorage.getItem(LAST_LOCAL_PATH_KEY) || defaultLocalPath;
+}
+
+export function rememberLocalPath(localPath: string) {
+  const value = localPath.trim();
+
+  if (value) {
+    localStorage.setItem(LAST_LOCAL_PATH_KEY, value);
+  }
+}
+
 export function createEmptyMount(defaultLocalPath = "Z:"): MountConfig {
   return {
     id: "",
@@ -65,6 +79,7 @@ export const useMountStore = defineStore("mounts", () => {
     error.value = null;
 
     try {
+      rememberLocalPath(config.localPath);
       await mountApi.create(config);
       mounts.value = await mountApi.list();
     } catch (err) {
@@ -80,6 +95,7 @@ export const useMountStore = defineStore("mounts", () => {
     error.value = null;
 
     try {
+      rememberLocalPath(config.localPath);
       await mountApi.update(config);
       mounts.value = await mountApi.list();
     } catch (err) {

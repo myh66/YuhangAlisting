@@ -6,15 +6,20 @@ import { ExternalLink, KeyRound, Play, RefreshCcw, RotateCw, Square, Wrench } fr
 import ServiceCard from "../components/ServiceCard.vue";
 import { useMountStore } from "../stores/mounts";
 import { useServiceStore } from "../stores/service";
+import { useSettingsStore } from "../stores/settings";
 import { systemApi, type RuntimeReadiness } from "../utils/tauri";
 
 const serviceStore = useServiceStore();
 const mountStore = useMountStore();
+const settingsStore = useSettingsStore();
 const message = useMessage();
 
 const readiness = ref<RuntimeReadiness | null>(null);
 const passwordModalVisible = ref(false);
 const passwordValue = ref("");
+const serviceStatusLabel = computed(() =>
+  settingsStore.t(`status.${serviceStore.statusKind}`),
+);
 
 const allReady = computed(
   () =>
@@ -25,8 +30,8 @@ const allReady = computed(
 
 const readinessStepDescription = computed(() =>
   readiness.value?.winfspRequired
-    ? "确认 AList、Rclone、WinFsp 状态"
-    : "确认 AList、Rclone 状态",
+    ? settingsStore.t("dashboard.readiness.withWinfsp")
+    : settingsStore.t("dashboard.readiness.withoutWinfsp"),
 );
 
 onMounted(async () => {
@@ -49,7 +54,7 @@ async function refreshReadiness() {
 async function installWinFsp() {
   try {
     await systemApi.installWinFsp();
-    message.info("WinFsp 安装器已启动，请在系统提示中确认。");
+    message.info(settingsStore.t("dashboard.winfsp.installing"));
   } catch (err) {
     message.error(err instanceof Error ? err.message : String(err));
   }
@@ -59,7 +64,7 @@ async function resetAdminPassword() {
   try {
     const password = await serviceStore.resetPassword();
     await navigator.clipboard.writeText(password);
-    message.success("新管理员密码已复制。");
+    message.success(settingsStore.t("dashboard.password.copied"));
   } catch (err) {
     message.error(err instanceof Error ? err.message : String(err));
   }
@@ -67,7 +72,7 @@ async function resetAdminPassword() {
 
 async function confirmAutoMount() {
   if (!passwordValue.value.trim()) {
-    message.warning("请输入 AList admin 密码。");
+    message.warning(settingsStore.t("dashboard.password.required"));
     return;
   }
 
@@ -75,10 +80,14 @@ async function confirmAutoMount() {
     await mountStore.mountAuto(passwordValue.value);
     passwordModalVisible.value = false;
     passwordValue.value = "";
-    message.success("自动挂载项已执行。");
+    message.success(settingsStore.t("dashboard.mountAuto.success"));
   } catch (err) {
     message.error(err instanceof Error ? err.message : String(err));
   }
+}
+
+function mountStatusLabel(status: string) {
+  return settingsStore.t(`status.${status}`);
 }
 </script>
 
@@ -90,49 +99,52 @@ async function confirmAutoMount() {
 
     <div class="panel-grid">
       <ServiceCard
-        title="AList 服务"
+        :title="settingsStore.t('dashboard.service.title')"
         :service="serviceStore.info"
-        :status-label="serviceStore.serviceStatusLabel"
+        :status-label="serviceStatusLabel"
         :uptime-text="serviceStore.uptimeText"
+        :port-label="settingsStore.t('service.port')"
+        :uptime-label="settingsStore.t('service.uptime')"
+        :url-label="settingsStore.t('service.url')"
       >
         <template #actions>
           <div class="service-actions">
             <n-button type="primary" :loading="serviceStore.loading" :disabled="!serviceStore.canStart" @click="serviceStore.start">
               <template #icon><Play :size="16" /></template>
-              启动
+              {{ settingsStore.t("dashboard.action.start") }}
             </n-button>
             <n-button secondary :loading="serviceStore.loading" :disabled="!serviceStore.isRunning" @click="serviceStore.restart">
               <template #icon><RotateCw :size="16" /></template>
-              重启
+              {{ settingsStore.t("dashboard.action.restart") }}
             </n-button>
             <n-button secondary type="error" :loading="serviceStore.loading" :disabled="!serviceStore.isRunning" @click="serviceStore.stop">
               <template #icon><Square :size="16" /></template>
-              停止
+              {{ settingsStore.t("dashboard.action.stop") }}
             </n-button>
             <n-button secondary :disabled="!serviceStore.isRunning" @click="serviceStore.openWeb">
               <template #icon><ExternalLink :size="16" /></template>
-              打开网页
+              {{ settingsStore.t("dashboard.action.openWeb") }}
             </n-button>
             <n-button secondary :disabled="!serviceStore.isRunning" @click="resetAdminPassword">
               <template #icon><KeyRound :size="16" /></template>
-              重置密码
+              {{ settingsStore.t("dashboard.action.resetPassword") }}
             </n-button>
           </div>
         </template>
       </ServiceCard>
 
-      <n-card title="快速流程" :bordered="true">
+      <n-card :title="settingsStore.t('dashboard.quick.title')" :bordered="true">
         <n-steps vertical size="small" :current="serviceStore.isRunning ? 2 : 1">
-          <n-step title="准备环境" :description="readinessStepDescription" />
-          <n-step title="启动 AList" description="运行本地 WebDAV 服务并健康检查" />
-          <n-step title="创建挂载" description="配置 AList 路径和本地盘符或目录" />
-          <n-step title="挂载到本地" description="输入 admin 密码后交给 Rclone 挂载" />
+          <n-step :title="settingsStore.t('dashboard.step.prepare')" :description="readinessStepDescription" />
+          <n-step :title="settingsStore.t('dashboard.step.start')" :description="settingsStore.t('dashboard.step.startDescription')" />
+          <n-step :title="settingsStore.t('dashboard.step.createMount')" :description="settingsStore.t('dashboard.step.createMountDescription')" />
+          <n-step :title="settingsStore.t('dashboard.step.mount')" :description="settingsStore.t('dashboard.step.mountDescription')" />
         </n-steps>
 
         <n-space vertical :size="10" class="quick-buttons">
           <n-button block secondary @click="refreshReadiness">
             <template #icon><RefreshCcw :size="16" /></template>
-            重新检查环境
+            {{ settingsStore.t("dashboard.action.recheck") }}
           </n-button>
           <n-button
             v-if="readiness?.winfspRequired && !readiness?.winfspInstalled"
@@ -142,29 +154,29 @@ async function confirmAutoMount() {
             @click="installWinFsp"
           >
             <template #icon><Wrench :size="16" /></template>
-            安装 WinFsp
+            {{ settingsStore.t("settings.winfsp.install") }}
           </n-button>
           <n-button block type="primary" :disabled="serviceStore.isRunning" @click="serviceStore.start">
             <template #icon><Play :size="16" /></template>
-            启动 AList
+            {{ settingsStore.t("dashboard.action.start") }}
           </n-button>
           <n-button block secondary :disabled="!serviceStore.isRunning" @click="passwordModalVisible = true">
-            挂载全部自动项
+            {{ settingsStore.t("dashboard.action.mountAuto") }}
           </n-button>
         </n-space>
       </n-card>
     </div>
 
-    <n-card title="运行环境" :bordered="true">
+    <n-card :title="settingsStore.t('dashboard.readiness.title')" :bordered="true">
       <div class="readiness-grid">
         <div class="check-item" :class="{ ok: readiness?.alistBinaryReady }">
-          <strong>AList 二进制</strong>
-          <span>{{ readiness?.alistBinaryReady ? "已就绪" : "未找到" }}</span>
+          <strong>{{ settingsStore.t("dashboard.readiness.alistBinary") }}</strong>
+          <span>{{ readiness?.alistBinaryReady ? settingsStore.t("dashboard.readiness.ready") : settingsStore.t("dashboard.readiness.missing") }}</span>
           <small>{{ readiness?.alistBinaryPath }}</small>
         </div>
         <div class="check-item" :class="{ ok: readiness?.rcloneBinaryReady }">
-          <strong>Rclone 二进制</strong>
-          <span>{{ readiness?.rcloneBinaryReady ? "已就绪" : "未找到" }}</span>
+          <strong>{{ settingsStore.t("dashboard.readiness.rcloneBinary") }}</strong>
+          <span>{{ readiness?.rcloneBinaryReady ? settingsStore.t("dashboard.readiness.ready") : settingsStore.t("dashboard.readiness.missing") }}</span>
           <small>{{ readiness?.rcloneBinaryPath }}</small>
         </div>
         <div
@@ -172,49 +184,49 @@ async function confirmAutoMount() {
           class="check-item"
           :class="{ ok: readiness?.winfspInstalled }"
         >
-          <strong>Windows 挂载驱动</strong>
+          <strong>{{ settingsStore.t("dashboard.readiness.winfsp") }}</strong>
           <span>
-            {{ readiness?.winfspInstalled ? "WinFsp 已安装" : "需要安装 WinFsp" }}
+            {{ readiness?.winfspInstalled ? settingsStore.t("dashboard.readiness.winfspInstalled") : settingsStore.t("dashboard.readiness.winfspNeeded") }}
           </span>
-          <small>{{ readiness?.winfspInstallerPath ?? "随安装包提供或运行 prebuild 获取" }}</small>
+          <small>{{ readiness?.winfspInstallerPath ?? settingsStore.t("dashboard.readiness.winfspHint") }}</small>
         </div>
         <div class="check-item" :class="{ ok: allReady }">
-          <strong>整体状态</strong>
-          <span>{{ allReady ? "可以使用" : "需要处理" }}</span>
-          <small>处理缺失项后重新检查</small>
+          <strong>{{ settingsStore.t("dashboard.readiness.overall") }}</strong>
+          <span>{{ allReady ? settingsStore.t("dashboard.readiness.overallReady") : settingsStore.t("dashboard.readiness.overallPending") }}</span>
+          <small>{{ settingsStore.t("dashboard.readiness.overallHint") }}</small>
         </div>
       </div>
     </n-card>
 
-    <n-card title="挂载概览" :bordered="true">
+    <n-card :title="settingsStore.t('dashboard.mountSummary.title')" :bordered="true">
       <div class="dashboard-summary">
         <div class="stat-box">
-          <span>活跃挂载</span>
+          <span>{{ settingsStore.t("dashboard.mountSummary.active") }}</span>
           <strong>{{ mountStore.activeCount }}/{{ mountStore.totalCount }}</strong>
         </div>
         <div class="stat-box">
-          <span>自动挂载</span>
+          <span>{{ settingsStore.t("dashboard.mountSummary.auto") }}</span>
           <strong>{{ mountStore.mounts.filter((item) => item.autoMount).length }}</strong>
         </div>
         <div class="stat-box">
-          <span>默认挂载点</span>
+          <span>{{ settingsStore.t("dashboard.mountSummary.defaultPath") }}</span>
           <strong>{{ mountStore.platform?.defaultMountHint ?? "Z:" }}</strong>
         </div>
       </div>
 
-      <n-empty v-if="mountStore.mounts.length === 0" description="还没有挂载配置">
+      <n-empty v-if="mountStore.mounts.length === 0" :description="settingsStore.t('dashboard.mountSummary.empty')">
         <template #extra>
-          <n-button type="primary" @click="$router.push('/mount')">添加挂载</n-button>
+          <n-button type="primary" @click="$router.push('/mount')">{{ settingsStore.t("dashboard.mountSummary.add") }}</n-button>
         </template>
       </n-empty>
 
       <n-table v-else :bordered="false" size="small" class="mount-table">
         <thead>
           <tr>
-            <th>名称</th>
-            <th>AList 路径</th>
-            <th>本地路径</th>
-            <th>状态</th>
+            <th>{{ settingsStore.t("dashboard.mountSummary.name") }}</th>
+            <th>{{ settingsStore.t("dashboard.mountSummary.remotePath") }}</th>
+            <th>{{ settingsStore.t("dashboard.mountSummary.localPath") }}</th>
+            <th>{{ settingsStore.t("dashboard.mountSummary.status") }}</th>
           </tr>
         </thead>
         <tbody>
@@ -222,27 +234,27 @@ async function confirmAutoMount() {
             <td>{{ mount.name }}</td>
             <td>{{ mount.remotePath }}</td>
             <td>{{ mount.localPath }}</td>
-            <td>{{ mount.status }}</td>
+            <td>{{ mountStatusLabel(mount.status) }}</td>
           </tr>
         </tbody>
       </n-table>
     </n-card>
 
-    <n-modal v-model:show="passwordModalVisible" preset="card" title="输入 AList admin 密码" class="password-modal">
+    <n-modal v-model:show="passwordModalVisible" preset="card" :title="settingsStore.t('dashboard.passwordModal.title')" class="password-modal">
       <n-space vertical>
         <n-input
           v-model:value="passwordValue"
           type="password"
           show-password-on="click"
-          placeholder="AList admin 密码"
+          :placeholder="settingsStore.t('dashboard.passwordModal.placeholder')"
           @keyup.enter="confirmAutoMount"
         />
         <n-alert type="info" :show-icon="false">
-          AList 不能反查当前密码；忘记时请先重置管理员密码。
+          {{ settingsStore.t("dashboard.passwordModal.hint") }}
         </n-alert>
         <n-space justify="end">
-          <n-button secondary @click="passwordModalVisible = false">取消</n-button>
-          <n-button type="primary" @click="confirmAutoMount">开始挂载</n-button>
+          <n-button secondary @click="passwordModalVisible = false">{{ settingsStore.t("common.cancel") }}</n-button>
+          <n-button type="primary" @click="confirmAutoMount">{{ settingsStore.t("dashboard.passwordModal.confirm") }}</n-button>
         </n-space>
       </n-space>
     </n-modal>

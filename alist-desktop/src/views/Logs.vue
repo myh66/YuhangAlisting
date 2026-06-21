@@ -4,19 +4,21 @@ import { useMessage } from "naive-ui";
 import { Trash2 } from "lucide-vue-next";
 import LogViewer from "../components/LogViewer.vue";
 import { useLogStore } from "../stores/logs";
+import { useSettingsStore } from "../stores/settings";
 
 const logStore = useLogStore();
+const settingsStore = useSettingsStore();
 const message = useMessage();
 
-const sourceOptions = [
-  { label: "全部来源", value: "all" },
+const sourceOptions = () => [
+  { label: settingsStore.t("logs.source.all"), value: "all" },
   { label: "AList", value: "alist" },
   { label: "Rclone", value: "rclone" },
-  { label: "系统", value: "system" },
+  { label: settingsStore.t("logs.source.system"), value: "system" },
 ];
 
-const levelOptions = [
-  { label: "全部级别", value: "all" },
+const levelOptions = () => [
+  { label: settingsStore.t("logs.level.all"), value: "all" },
   { label: "info", value: "info" },
   { label: "warn", value: "warn" },
   { label: "error", value: "error" },
@@ -29,33 +31,38 @@ onMounted(async () => {
 
 async function clearLogs() {
   await logStore.clear();
-  message.success("日志已清空。");
+  message.success(settingsStore.t("logs.cleared"));
 }
 </script>
 
 <template>
   <div class="page-stack">
-    <n-card title="实时日志" :bordered="true">
+    <n-card :title="settingsStore.t('logs.title')" :bordered="true">
       <template #header-extra>
         <n-space>
           <n-switch v-model:value="logStore.autoScroll">
-            <template #checked>自动滚动</template>
-            <template #unchecked>手动查看</template>
+            <template #checked>{{ settingsStore.t("logs.autoScroll.on") }}</template>
+            <template #unchecked>{{ settingsStore.t("logs.autoScroll.off") }}</template>
           </n-switch>
           <n-button secondary @click="clearLogs">
             <template #icon><Trash2 :size="16" /></template>
-            清空
+            {{ settingsStore.t("common.clear") }}
           </n-button>
         </n-space>
       </template>
 
       <div class="log-toolbar">
-        <n-select v-model:value="logStore.source" :options="sourceOptions" />
-        <n-select v-model:value="logStore.level" :options="levelOptions" />
-        <n-input v-model:value="logStore.query" clearable placeholder="搜索日志内容" />
+        <n-select v-model:value="logStore.source" :options="sourceOptions()" />
+        <n-select v-model:value="logStore.level" :options="levelOptions()" />
+        <n-input v-model:value="logStore.query" clearable :placeholder="settingsStore.t('common.searchLogs')" />
       </div>
 
-      <LogViewer :logs="logStore.filteredLogs" :auto-scroll="logStore.autoScroll" />
+      <LogViewer
+        :logs="logStore.filteredLogs"
+        :auto-scroll="logStore.autoScroll"
+        :empty-text="settingsStore.t('logs.empty')"
+        :locale="settingsStore.config.language"
+      />
     </n-card>
   </div>
 </template>

@@ -7,9 +7,11 @@ import {
   createEmptyMount,
   useMountStore,
 } from "../stores/mounts";
+import { useSettingsStore } from "../stores/settings";
 import type { MountConfig, MountInfo } from "../utils/tauri";
 
 const mountStore = useMountStore();
+const settingsStore = useSettingsStore();
 const message = useMessage();
 const dialog = useDialog();
 
@@ -46,10 +48,10 @@ async function saveMount() {
   try {
     if (editing.value) {
       await mountStore.update(form.value);
-      message.success("挂载配置已更新。");
+      message.success(settingsStore.t("mount.updated"));
     } else {
       await mountStore.create(form.value);
-      message.success("挂载配置已保存。");
+      message.success(settingsStore.t("mount.saved"));
     }
 
     resetForm();
@@ -60,14 +62,14 @@ async function saveMount() {
 
 async function removeMount(mount: MountInfo) {
   dialog.warning({
-    title: "删除挂载",
-    content: `确认删除 ${mount.name}？正在运行的挂载会先卸载。`,
-    positiveText: "删除",
-    negativeText: "取消",
+    title: settingsStore.t("mount.delete.title"),
+    content: settingsStore.format("mount.delete.confirm", { name: mount.name }),
+    positiveText: settingsStore.t("common.delete"),
+    negativeText: settingsStore.t("common.cancel"),
     onPositiveClick: async () => {
       try {
         await mountStore.remove(mount.id);
-        message.success("挂载配置已删除。");
+        message.success(settingsStore.t("mount.deleted"));
       } catch (err) {
         message.error(err instanceof Error ? err.message : String(err));
       }
@@ -97,7 +99,7 @@ function mountAutoWithPassword() {
 
 async function confirmMountPassword() {
   if (!passwordValue.value.trim()) {
-    message.warning("请输入 AList admin 密码。");
+    message.warning(settingsStore.t("mount.password.required"));
     return;
   }
 
@@ -118,6 +120,10 @@ function statusType(status: MountInfo["status"]) {
   if (status === "error") return "error";
   return "default";
 }
+
+function statusLabel(status: MountInfo["status"]) {
+  return settingsStore.t(`status.${status}`);
+}
 </script>
 
 <template>
@@ -126,18 +132,18 @@ function statusType(status: MountInfo["status"]) {
       {{ mountStore.error }}
     </n-alert>
 
-    <n-card title="挂载配置" :bordered="true">
+    <n-card :title="settingsStore.t('mount.title')" :bordered="true">
       <template #header-extra>
         <n-space>
           <n-button secondary :loading="mountStore.loading" @click="mountStore.refresh">
             <template #icon><RefreshCcw :size="16" /></template>
-            刷新
+            {{ settingsStore.t("common.refresh") }}
           </n-button>
           <n-button secondary :disabled="mountStore.mounts.length === 0" @click="mountAutoWithPassword">
-            自动项
+            {{ settingsStore.t("mount.action.auto") }}
           </n-button>
           <n-button secondary :disabled="mountStore.activeCount === 0" @click="mountStore.unmountAll">
-            全部卸载
+            {{ settingsStore.t("mount.action.unmountAll") }}
           </n-button>
         </n-space>
       </template>
@@ -145,42 +151,42 @@ function statusType(status: MountInfo["status"]) {
       <n-table :bordered="false" size="small">
         <thead>
           <tr>
-            <th>名称</th>
-            <th>AList 路径</th>
-            <th>本地路径</th>
-            <th>缓存</th>
-            <th>自动</th>
-            <th>状态</th>
-            <th class="actions-col">操作</th>
+            <th>{{ settingsStore.t("mount.column.name") }}</th>
+            <th>{{ settingsStore.t("mount.column.remotePath") }}</th>
+            <th>{{ settingsStore.t("mount.column.localPath") }}</th>
+            <th>{{ settingsStore.t("mount.column.cache") }}</th>
+            <th>{{ settingsStore.t("mount.column.auto") }}</th>
+            <th>{{ settingsStore.t("mount.column.status") }}</th>
+            <th class="actions-col">{{ settingsStore.t("mount.column.actions") }}</th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="mountStore.mounts.length === 0">
-            <td colspan="7" class="muted">暂无挂载配置</td>
+            <td colspan="7" class="muted">{{ settingsStore.t("mount.empty") }}</td>
           </tr>
           <tr v-for="mount in mountStore.mounts" :key="mount.id">
             <td>{{ mount.name }}</td>
             <td>{{ mount.remotePath }}</td>
             <td>{{ mount.localPath }}</td>
             <td>{{ mount.cacheMode }}</td>
-            <td>{{ mount.autoMount ? "是" : "否" }}</td>
+            <td>{{ mount.autoMount ? settingsStore.t("mount.auto.yes") : settingsStore.t("mount.auto.no") }}</td>
             <td>
               <n-tag :type="statusType(mount.status)" size="small">
-                {{ mount.status }}
+                {{ statusLabel(mount.status) }}
               </n-tag>
             </td>
             <td>
               <n-space :size="6">
                 <n-button size="tiny" secondary :disabled="mount.status === 'mounted' || mount.status === 'mounting'" @click="mountWithPassword(mount.id)">
-                  挂载
+                  {{ settingsStore.t("mount.action.mount") }}
                 </n-button>
                 <n-button size="tiny" secondary :disabled="mount.status !== 'mounted'" @click="runMountAction(() => mountStore.unmount(mount.id).then(() => undefined))">
-                  卸载
+                  {{ settingsStore.t("mount.action.unmount") }}
                 </n-button>
                 <n-button size="tiny" secondary @click="mountStore.openPath(mount.id)">
                   <template #icon><FolderOpen :size="14" /></template>
                 </n-button>
-                <n-button size="tiny" secondary @click="editMount(mount)">编辑</n-button>
+                <n-button size="tiny" secondary @click="editMount(mount)">{{ settingsStore.t("common.edit") }}</n-button>
                 <n-button size="tiny" secondary type="error" @click="removeMount(mount)">
                   <template #icon><Trash2 :size="14" /></template>
                 </n-button>
@@ -192,31 +198,31 @@ function statusType(status: MountInfo["status"]) {
       </n-table>
     </n-card>
 
-    <n-card :title="editing ? '编辑挂载' : '新增挂载'" :bordered="true">
+    <n-card :title="editing ? settingsStore.t('mount.form.editTitle') : settingsStore.t('mount.form.createTitle')" :bordered="true">
       <n-form label-placement="left" label-width="116">
         <n-grid :cols="2" :x-gap="16" responsive="screen">
-          <n-form-item-gi label="显示名称">
-            <n-input v-model:value="form.name" placeholder="例如 阿里云盘" />
+          <n-form-item-gi :label="settingsStore.t('mount.form.name')">
+            <n-input v-model:value="form.name" :placeholder="settingsStore.t('mount.form.namePlaceholder')" />
           </n-form-item-gi>
-          <n-form-item-gi label="远程路径">
+          <n-form-item-gi :label="settingsStore.t('mount.form.remotePath')">
             <n-input v-model:value="form.remotePath" placeholder="/aliyundrive" />
           </n-form-item-gi>
-          <n-form-item-gi label="本地路径">
+          <n-form-item-gi :label="settingsStore.t('mount.form.localPath')">
             <n-input v-model:value="form.localPath" :placeholder="mountStore.platform?.defaultMountHint ?? 'Z:'" />
           </n-form-item-gi>
-          <n-form-item-gi label="缓存模式">
+          <n-form-item-gi :label="settingsStore.t('mount.form.cacheMode')">
             <n-select v-model:value="form.cacheMode" :options="cacheModeOptions" />
           </n-form-item-gi>
           <n-form-item-gi label="Buffer size">
             <n-input v-model:value="form.bufferSize" placeholder="256M" />
           </n-form-item-gi>
-          <n-form-item-gi label="缓存有效期">
+          <n-form-item-gi :label="settingsStore.t('mount.form.cacheMaxAge')">
             <n-input v-model:value="form.vfsCacheMaxAge" placeholder="1h" />
           </n-form-item-gi>
-          <n-form-item-gi label="自动挂载">
+          <n-form-item-gi :label="settingsStore.t('mount.form.autoMount')">
             <n-switch v-model:value="form.autoMount" />
           </n-form-item-gi>
-          <n-form-item-gi label="只读">
+          <n-form-item-gi :label="settingsStore.t('mount.form.readOnly')">
             <n-switch v-model:value="form.readOnly" />
           </n-form-item-gi>
         </n-grid>
@@ -224,32 +230,32 @@ function statusType(status: MountInfo["status"]) {
         <n-space>
           <n-button type="primary" :loading="mountStore.loading" @click="saveMount">
             <template #icon><Save :size="16" /></template>
-            {{ editing ? "保存修改" : "保存配置" }}
+            {{ editing ? settingsStore.t("mount.form.saveEdit") : settingsStore.t("mount.form.saveCreate") }}
           </n-button>
           <n-button secondary @click="resetForm">
             <template #icon><Plus :size="16" /></template>
-            新建
+            {{ settingsStore.t("common.create") }}
           </n-button>
         </n-space>
       </n-form>
     </n-card>
 
-    <n-modal v-model:show="passwordModalVisible" preset="card" title="输入 AList admin 密码" class="password-modal">
+    <n-modal v-model:show="passwordModalVisible" preset="card" :title="settingsStore.t('mount.passwordModal.title')" class="password-modal">
       <n-space vertical>
         <n-input
           v-model:value="passwordValue"
           type="password"
           show-password-on="click"
-          placeholder="AList admin 密码"
+          :placeholder="settingsStore.t('mount.passwordModal.placeholder')"
           @keyup.enter="confirmMountPassword"
         />
         <n-alert type="info" :show-icon="false">
-          密码只用于本次 Rclone 挂载，应用会自动转换为 Rclone 需要的 obscure 格式。
+          {{ settingsStore.t("mount.passwordModal.hint") }}
         </n-alert>
         <n-space justify="end">
-          <n-button secondary @click="passwordModalVisible = false">取消</n-button>
+          <n-button secondary @click="passwordModalVisible = false">{{ settingsStore.t("common.cancel") }}</n-button>
           <n-button type="primary" @click="confirmMountPassword">
-            {{ pendingMountId ? "挂载此项" : "挂载自动项" }}
+            {{ pendingMountId ? settingsStore.t("mount.passwordModal.confirmSingle") : settingsStore.t("mount.passwordModal.confirmAuto") }}
           </n-button>
         </n-space>
       </n-space>

@@ -5,6 +5,8 @@ import type { LogEntry } from "../utils/tauri";
 const props = defineProps<{
   logs: LogEntry[];
   autoScroll?: boolean;
+  emptyText?: string;
+  locale?: string;
 }>();
 
 const root = ref<HTMLElement | null>(null);
@@ -22,7 +24,7 @@ watch(
 );
 
 function formatTime(timestamp: number) {
-  return new Intl.DateTimeFormat("zh-CN", {
+  return new Intl.DateTimeFormat(props.locale ?? "zh-CN", {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
@@ -32,7 +34,7 @@ function formatTime(timestamp: number) {
 
 <template>
   <div ref="root" class="log-viewer">
-    <div v-if="logs.length === 0" class="muted">暂无日志输出</div>
+    <div v-if="logs.length === 0" class="muted">{{ emptyText ?? "暂无日志输出" }}</div>
     <div
       v-for="(log, index) in logs"
       :key="`${log.timestamp}-${index}`"

@@ -7,6 +7,9 @@ defineProps<{
   statusLabel: string;
   service: ServiceInfo;
   uptimeText: string;
+  portLabel: string;
+  uptimeLabel: string;
+  urlLabel: string;
 }>();
 </script>
 
@@ -21,15 +24,15 @@ defineProps<{
 
     <div class="stat-row">
       <div class="stat-box">
-        <span>端口</span>
+        <span>{{ portLabel }}</span>
         <strong>{{ service.port }}</strong>
       </div>
       <div class="stat-box">
-        <span>运行时间</span>
+        <span>{{ uptimeLabel }}</span>
         <strong>{{ uptimeText }}</strong>
       </div>
       <div class="stat-box">
-        <span>访问地址</span>
+        <span>{{ urlLabel }}</span>
         <strong>{{ service.web_url }}</strong>
       </div>
     </div>

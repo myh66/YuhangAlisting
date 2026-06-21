@@ -16,6 +16,7 @@ use tokio::{
 };
 
 const MAX_RESTART_ATTEMPTS: u8 = 3;
+const DEFAULT_ADMIN_PASSWORD: &str = "root";
 
 #[derive(Debug, Clone)]
 pub enum ServiceStatus {
@@ -285,10 +286,14 @@ impl AListManager {
         }
 
         let stdout = String::from_utf8_lossy(&output.stdout);
-        let value = parse_password_from_admin_output(&stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let combined_output = format!("{stdout}\n{stderr}");
+        let value = parse_password_from_admin_output(&combined_output);
 
         if let Some(value) = value {
             Ok(value)
+        } else if args.len() == 3 && args[0] == "admin" && args[1] == "set" {
+            Ok(args[2].to_string())
         } else if args == &["admin"] {
             Err("AList cannot reveal the current admin password after first startup. Reset it instead.".to_string())
         } else {
@@ -298,9 +303,11 @@ impl AListManager {
 
     async fn prepare_config(&self) -> Result<(), String> {
         let config_path = self.data_dir.join("config.json");
+        let is_first_bootstrap = !config_path.exists();
 
-        if !config_path.exists() {
+        if is_first_bootstrap {
             self.bootstrap_default_config(&config_path).await?;
+            self.set_default_admin_password().await?;
         }
 
         if !config_path.exists() {
@@ -324,6 +331,19 @@ impl AListManager {
         let json = serde_json::to_string_pretty(&value)
             .map_err(|err| format!("serialize alist config failed: {err}"))?;
         fs::write(config_path, json).map_err(|err| format!("write alist config failed: {err}"))
+    }
+
+    async fn set_default_admin_password(&self) -> Result<(), String> {
+        self.set_admin_password(DEFAULT_ADMIN_PASSWORD).await?;
+        emit_log(
+            &self.app,
+            &self.logs,
+            "alist",
+            "info",
+            "Default AList admin login initialized: admin/root",
+        )
+        .await;
+        Ok(())
     }
 
     async fn bootstrap_default_config(&self, config_path: &PathBuf) -> Result<(), String> {
@@ -410,7 +430,7 @@ fn parse_password_from_admin_output(output: &str) -> Option<String> {
     output.lines().find_map(|line| {
         let sanitized = strip_ansi_codes(line);
         let (_, password) = sanitized.split_once("password:")?;
-        let password = password.trim();
+        let password = password.trim().trim_matches('"');
 
         if password.is_empty() {
             None
@@ -437,6 +457,21 @@ fn strip_ansi_codes(input: &str) -> String {
     }
 
     output
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_password_from_admin_output;
+
+    #[test]
+    fn parses_password_from_alist_logrus_output() {
+        let output = r#"time="2026-06-21 11:37:46" level=info msg="password: q84N5MN2""#;
+
+        assert_eq!(
+            parse_password_from_admin_output(output),
+            Some("q84N5MN2".to_string())
+        );
+    }
 }
 
 pub fn resolve_alist_binary_path(app: &AppHandle, config: &AppConfig) -> PathBuf {

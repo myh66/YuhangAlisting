@@ -39,6 +39,9 @@ const menuOptions = computed<MenuOption[]>(() =>
 
 const activeKey = computed(() => route.name?.toString() ?? "dashboard");
 const pageTitle = computed(() => settingsStore.t(activeKey.value));
+const serviceStatusLabel = computed(() =>
+  settingsStore.t(`status.${serviceStore.statusKind}`),
+);
 
 async function setLanguage(language: Language) {
   const previousLanguage = settingsStore.config.language;
@@ -94,7 +97,7 @@ watch(
             <div class="sidebar-status">
               <span class="status-dot" :class="serviceStore.statusKind"></span>
               <div>
-                <strong>{{ serviceStore.serviceStatusLabel }}</strong>
+                <strong>{{ serviceStatusLabel }}</strong>
                 <span>{{ serviceStore.info.web_url }}</span>
               </div>
             </div>
@@ -125,7 +128,7 @@ watch(
                 </n-button-group>
                 <div class="toolbar-status">
                   <span class="status-dot" :class="serviceStore.statusKind"></span>
-                  <span>{{ serviceStore.serviceStatusLabel }}</span>
+                  <span>{{ serviceStatusLabel }}</span>
                 </div>
               </div>
             </header>

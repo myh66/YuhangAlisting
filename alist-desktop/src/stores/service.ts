@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import { alistApi, type ServiceInfo, type ServiceStatusKind } from "../utils/tauri";
+import { alistApi, type ServiceInfo } from "../utils/tauri";
 
 const defaultInfo: ServiceInfo = {
   status: "stopped",
@@ -12,13 +12,6 @@ const defaultInfo: ServiceInfo = {
   binary_path: "",
   error: null,
   restart_attempts: 0,
-};
-
-const statusLabels: Record<ServiceStatusKind, string> = {
-  stopped: "已停止",
-  starting: "启动中",
-  running: "运行中",
-  error: "异常",
 };
 
 function formatUptime(totalSeconds: number) {
@@ -48,7 +41,6 @@ export const useServiceStore = defineStore("service", () => {
   const unlistenStatus = ref<UnlistenFn | null>(null);
 
   const statusKind = computed(() => info.value.status);
-  const serviceStatusLabel = computed(() => statusLabels[info.value.status]);
   const uptimeText = computed(() => formatUptime(info.value.uptime_seconds));
   const isRunning = computed(() => info.value.status === "running");
   const canStart = computed(() => info.value.status === "stopped" || info.value.status === "error");
@@ -113,7 +105,6 @@ export const useServiceStore = defineStore("service", () => {
     loading,
     error,
     statusKind,
-    serviceStatusLabel,
     uptimeText,
     isRunning,
     canStart,

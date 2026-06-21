@@ -11,6 +11,15 @@ Local AList desktop manager · Rclone mount console · Tauri 2 · Vue 3 · Rust
 
 YuhangAlisting is a desktop app for managing a local AList service and Rclone WebDAV mounts. It brings service control, health checks, admin password tools, Rclone mounting, live logs, tray behavior, WinFsp detection, and a native-style interface into one app.
 
+On first launch, the app initializes the local AList data directory and sets the default login:
+
+```text
+Username: admin
+Password: root
+```
+
+You can change the password in the desktop app or in the AList web UI. Later launches do not overwrite user-changed passwords.
+
 ## Features
 
 - **AList service control**: start, stop, restart, health check, and crash restart.
@@ -42,6 +51,8 @@ Rust backend
 ```
 
 ## Get Started
+
+If you only want to use the desktop app, download the installer for your platform from [GitHub Releases](https://github.com/myh66/YuhangAlisting/releases). Developers can run from source with:
 
 ```bash
 git clone https://github.com/myh66/YuhangAlisting.git
@@ -81,10 +92,19 @@ git push origin v0.1.0
 Actions builds and uploads:
 
 - Windows: NSIS `.exe` and MSI `.msi`
-- macOS: DMG `.dmg`
+- macOS: DMG `.dmg` and `.app.zip`
 - Linux: AppImage and Debian `.deb`
 
 See [docs/RELEASING.md](docs/RELEASING.md) for the full flow.
+
+## Usage Docs
+
+- Default login: `admin / root`
+- AList web UI: click **Open Web** after starting the app, default URL `http://127.0.0.1:5244`
+- Rclone mounts: add a WebDAV mount in the **Mount** page and choose a local mount point
+- Windows mounts: WinFsp is required; the app detects it and offers the bundled MSI installer
+- macOS / Linux mounts: the system must allow FUSE/mount operations; prefer mount points under `/Volumes` or `/mnt`
+- See [docs/WIKI.md](docs/WIKI.md) for the full wiki draft
 
 ## Project Layout
 

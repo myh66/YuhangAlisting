@@ -11,6 +11,15 @@
 
 YuhangAlisting 是一个用来管理本地 AList 和 Rclone 挂载的桌面应用。它把 AList 服务启动、健康检查、管理员密码、Rclone WebDAV 挂载、实时日志、系统托盘、WinFsp 检测与安装入口放到一个原生风格的桌面界面里。
 
+首次启动会初始化本地 AList 数据目录，并设置默认登录：
+
+```text
+账号：admin
+密码：root
+```
+
+登录后可以在应用内或 AList Web 界面修改密码。后续启动不会覆盖用户改过的密码。
+
 ## 功能特性
 
 - **AList 服务管理**：启动、停止、重启、健康检查、进程崩溃自动重启。
@@ -42,6 +51,8 @@ Rust 后端
 ```
 
 ## 快速开始
+
+如果只想使用桌面程序，请优先从 [GitHub Releases](https://github.com/myh66/YuhangAlisting/releases) 下载对应系统安装包。开发者可以按下面步骤从源码运行：
 
 ```bash
 git clone https://github.com/myh66/YuhangAlisting.git
@@ -81,10 +92,19 @@ git push origin v0.1.0
 Actions 会构建并上传：
 
 - Windows：NSIS `.exe` 和 MSI `.msi`
-- macOS：DMG `.dmg`
+- macOS：DMG `.dmg` 和 `.app.zip`
 - Linux：AppImage 和 Debian `.deb`
 
 详细流程见 [docs/RELEASING.md](docs/RELEASING.md)。
+
+## 使用文档
+
+- 默认账号：`admin / root`
+- AList Web：应用启动后点击 **Open Web**，默认地址为 `http://127.0.0.1:5244`
+- Rclone 挂载：在 **Mount** 页面新增 WebDAV 配置并选择本地挂载点
+- Windows 挂载：需要 WinFsp，应用会检测并提供随包 MSI 安装入口
+- macOS / Linux 挂载：需要系统允许 FUSE/挂载能力，挂载点建议放在 `/Volumes` 或 `/mnt`
+- 更多说明可参考 [docs/WIKI.md](docs/WIKI.md)
 
 ## 项目结构
 

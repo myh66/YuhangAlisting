@@ -135,4 +135,5 @@ export const systemApi = {
   installWinFsp: () => invoke<void>("install_winfsp"),
   hideMainWindow: () => invoke<void>("hide_main_window"),
   exitApp: () => invoke<void>("exit_app"),
+  refreshFileExplorer: () => invoke<void>("refresh_file_explorer"),
 };

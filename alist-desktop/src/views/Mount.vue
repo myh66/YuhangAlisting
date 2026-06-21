@@ -10,7 +10,7 @@ import {
 } from "../stores/mounts";
 import { useSettingsStore } from "../stores/settings";
 import { getCachedAdminPassword, setCachedAdminPassword } from "../utils/passwordCache";
-import type { MountConfig, MountInfo } from "../utils/tauri";
+import { systemApi, type MountConfig, type MountInfo } from "../utils/tauri";
 
 const mountStore = useMountStore();
 const settingsStore = useSettingsStore();
@@ -22,6 +22,7 @@ const editing = computed(() => form.value.id.length > 0);
 const passwordModalVisible = ref(false);
 const passwordValue = ref("");
 const pendingMountId = ref<string | null>(null);
+const isWindows = computed(() => mountStore.platform?.os === "windows");
 
 onMounted(async () => {
   await mountStore.refresh();
@@ -106,6 +107,15 @@ async function runMountAction(action: () => Promise<void>) {
   }
 }
 
+async function refreshExplorer() {
+  try {
+    await systemApi.refreshFileExplorer();
+    message.success(settingsStore.t("mount.explorer.refreshed"));
+  } catch (err) {
+    message.error(err instanceof Error ? err.message : String(err));
+  }
+}
+
 function mountWithPassword(id: string) {
   pendingMountId.value = id;
   passwordValue.value = getCachedAdminPassword();
@@ -167,6 +177,9 @@ function statusLabel(status: MountInfo["status"]) {
           </n-button>
           <n-button secondary :disabled="mountStore.activeCount === 0" @click="mountStore.unmountAll">
             {{ settingsStore.t("mount.action.unmountAll") }}
+          </n-button>
+          <n-button v-if="isWindows" secondary @click="refreshExplorer">
+            {{ settingsStore.t("mount.action.refreshExplorer") }}
           </n-button>
         </n-space>
       </template>
@@ -269,16 +282,20 @@ function statusLabel(status: MountInfo["status"]) {
           <h2>{{ settingsStore.t("mount.passwordModal.title") }}</h2>
           <n-button quaternary circle @click="passwordModalVisible = false">×</n-button>
         </header>
-        <n-input
-          v-model:value="passwordValue"
-          type="password"
-          show-password-on="click"
-          :placeholder="settingsStore.t('mount.passwordModal.placeholder')"
-          @keyup.enter="confirmMountPassword"
-        />
-        <n-alert type="info" :show-icon="false">
-          {{ settingsStore.t("mount.passwordModal.hint") }}
-        </n-alert>
+        <div class="app-dialog-body">
+          <n-input
+            v-model:value="passwordValue"
+            type="password"
+            show-password-on="click"
+            clearable
+            autofocus
+            :placeholder="settingsStore.t('mount.passwordModal.placeholder')"
+            @keyup.enter="confirmMountPassword"
+          />
+          <n-alert type="info" :show-icon="false">
+            {{ settingsStore.t("mount.passwordModal.hint") }}
+          </n-alert>
+        </div>
         <footer class="app-dialog-actions">
           <n-button secondary @click="passwordModalVisible = false">{{ settingsStore.t("common.cancel") }}</n-button>
           <n-button type="primary" @click="confirmMountPassword">

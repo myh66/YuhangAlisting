@@ -253,16 +253,20 @@ function mountStatusLabel(status: string) {
           <h2>{{ settingsStore.t("dashboard.passwordModal.title") }}</h2>
           <n-button quaternary circle @click="passwordModalVisible = false">×</n-button>
         </header>
-        <n-input
-          v-model:value="passwordValue"
-          type="password"
-          show-password-on="click"
-          :placeholder="settingsStore.t('dashboard.passwordModal.placeholder')"
-          @keyup.enter="confirmAutoMount"
-        />
-        <n-alert type="info" :show-icon="false">
-          {{ settingsStore.t("dashboard.passwordModal.hint") }}
-        </n-alert>
+        <div class="app-dialog-body">
+          <n-input
+            v-model:value="passwordValue"
+            type="password"
+            show-password-on="click"
+            clearable
+            autofocus
+            :placeholder="settingsStore.t('dashboard.passwordModal.placeholder')"
+            @keyup.enter="confirmAutoMount"
+          />
+          <n-alert type="info" :show-icon="false">
+            {{ settingsStore.t("dashboard.passwordModal.hint") }}
+          </n-alert>
+        </div>
         <footer class="app-dialog-actions">
           <n-button secondary @click="passwordModalVisible = false">{{ settingsStore.t("common.cancel") }}</n-button>
           <n-button type="primary" @click="confirmAutoMount">{{ settingsStore.t("dashboard.passwordModal.confirm") }}</n-button>

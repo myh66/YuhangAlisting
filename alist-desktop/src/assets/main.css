@@ -421,7 +421,7 @@ select {
 
 .app-dialog {
   width: min(460px, calc(100vw - 32px));
-  padding: 24px;
+  padding: 28px;
   border: 1px solid var(--border);
   border-radius: 16px;
   background: var(--dialog-bg);
@@ -439,7 +439,7 @@ select {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 16px;
+  margin-bottom: 22px;
 }
 
 .app-dialog-header h2 {
@@ -455,11 +455,17 @@ select {
   line-height: 1.6;
 }
 
+.app-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
 .app-dialog-actions {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  margin-top: 20px;
+  margin-top: 26px;
 }
 
 @media (max-width: 900px) {

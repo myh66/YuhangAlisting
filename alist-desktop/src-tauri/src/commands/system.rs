@@ -2,6 +2,7 @@ use crate::{
     services::{
         alist_manager::{bundled_binary_path, resolve_alist_binary_path, resolve_rclone_binary_path},
         process::hide_std_command_window,
+        rclone_manager,
     },
     shutdown_app, AppState,
 };
@@ -103,6 +104,12 @@ pub async fn hide_main_window(state: State<'_, AppState>) -> Result<(), String> 
 #[tauri::command]
 pub async fn exit_app(state: State<'_, AppState>) -> Result<(), String> {
     shutdown_app(state.app.clone()).await;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn refresh_file_explorer() -> Result<(), String> {
+    rclone_manager::restart_explorer();
     Ok(())
 }
 

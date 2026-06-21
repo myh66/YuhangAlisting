@@ -94,7 +94,8 @@ pub fn run() {
             commands::system::get_winfsp_status,
             commands::system::install_winfsp,
             commands::system::hide_main_window,
-            commands::system::exit_app
+            commands::system::exit_app,
+            commands::system::refresh_file_explorer
         ])
         .on_window_event(|window, event| {
             if window.label() == "main" {

@@ -314,6 +314,16 @@ impl RcloneManager {
     pub async fn unmount(&mut self, id: &str) -> Result<Vec<MountInfo>, String> {
         let config = self.configs.iter().find(|config| config.id == id).cloned();
 
+        self.unmount_without_target_cleanup(id).await?;
+
+        if let Some(config) = config {
+            self.cleanup_mount_target(&config).await;
+        }
+
+        self.list().await
+    }
+
+    async fn unmount_without_target_cleanup(&mut self, id: &str) -> Result<(), String> {
         if let Some(mut instance) = self.mounts.remove(id) {
             if let Some(mut child) = instance.process.take() {
                 child
@@ -333,20 +343,17 @@ impl RcloneManager {
             .await;
         }
 
-        if let Some(config) = config {
-            self.cleanup_mount_target(&config).await;
-        }
-
-        self.list().await
+        Ok(())
     }
 
     pub async fn unmount_all(&mut self) -> Result<Vec<MountInfo>, String> {
         let ids: Vec<String> = self.mounts.keys().cloned().collect();
 
         for id in ids {
-            let _ = self.unmount(&id).await;
+            let _ = self.unmount_without_target_cleanup(&id).await;
         }
 
+        self.cleanup_all_mount_targets().await;
         self.list().await
     }
 
@@ -539,16 +546,20 @@ impl RcloneManager {
         let _ = self.unmount(&config.id).await;
         self.cleanup_mount_target(config).await;
         self.kill_stale_rclone_processes().await;
+
+        #[cfg(target_os = "windows")]
+        {
+            let targets = self.cleanup_targets(Some(config));
+            if targets.iter().any(|target| windows_drive_exists(target)) {
+                cleanup_windows_targets(&targets, true);
+            }
+        }
     }
 
     async fn cleanup_mount_target(&self, config: &MountConfig) {
         #[cfg(target_os = "windows")]
         {
-            for target in self.cleanup_targets(Some(config)) {
-                let _ = run_std_command("net", &["use", &target, "/delete", "/y"]);
-                let drive_root = format!("{target}\\");
-                let _ = run_std_command("net", &["use", &drive_root, "/delete", "/y"]);
-            }
+            cleanup_windows_targets(&self.cleanup_targets(Some(config)), false);
         }
 
         #[cfg(not(target_os = "windows"))]
@@ -557,14 +568,20 @@ impl RcloneManager {
         }
     }
 
+    async fn cleanup_all_mount_targets(&self) {
+        #[cfg(target_os = "windows")]
+        {
+            cleanup_windows_targets(&self.cleanup_targets(None), false);
+        }
+
+        #[cfg(not(target_os = "windows"))]
+        {}
+    }
+
     pub async fn cleanup_stale_processes(&self) {
         #[cfg(target_os = "windows")]
         {
-            for target in self.cleanup_targets(None) {
-                let _ = run_std_command("net", &["use", &target, "/delete", "/y"]);
-                let drive_root = format!("{target}\\");
-                let _ = run_std_command("net", &["use", &drive_root, "/delete", "/y"]);
-            }
+            cleanup_windows_targets(&self.cleanup_targets(None), false);
         }
 
         self.kill_stale_rclone_processes().await;
@@ -855,3 +872,32 @@ fn kill_processes_by_exe_path(exe_path: &PathBuf) {
         ],
     );
 }
+
+#[cfg(target_os = "windows")]
+fn cleanup_windows_targets(targets: &[String], refresh_explorer: bool) {
+    for target in targets {
+        let _ = run_std_command("net", &["use", target, "/delete", "/y"]);
+        let drive_root = format!("{target}\\");
+        let _ = run_std_command("net", &["use", &drive_root, "/delete", "/y"]);
+    }
+
+    if refresh_explorer {
+        restart_explorer();
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn windows_drive_exists(target: &str) -> bool {
+    std::path::Path::new(&format!("{target}\\")).exists()
+}
+
+#[cfg(target_os = "windows")]
+pub fn restart_explorer() {
+    let _ = run_std_command("taskkill", &["/F", "/IM", "explorer.exe"]);
+    let mut command = std::process::Command::new("explorer.exe");
+    hide_std_command_window(&mut command);
+    let _ = command.spawn();
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn restart_explorer() {}

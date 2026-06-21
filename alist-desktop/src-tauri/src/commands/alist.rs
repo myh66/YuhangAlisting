@@ -1,4 +1,7 @@
-use crate::{services::alist_manager::ServiceInfo, AppState};
+use crate::{
+    services::{alist_manager::ServiceInfo, process::hide_std_command_window},
+    AppState,
+};
 use std::process::Command;
 use tauri::State;
 
@@ -62,8 +65,10 @@ pub async fn open_alist_web(state: State<'_, AppState>) -> Result<(), String> {
 fn open_url(url: &str) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
-        Command::new("cmd")
-            .args(["/C", "start", "", url])
+        let mut command = Command::new("cmd");
+        command.args(["/C", "start", "", url]);
+        hide_std_command_window(&mut command);
+        command
             .spawn()
             .map_err(|err| format!("open browser failed: {err}"))?;
     }

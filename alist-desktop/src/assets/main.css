@@ -15,6 +15,9 @@
   --success: #30d158;
   --warning: #ff9f0a;
   --danger: #ff453a;
+  --scrollbar-thumb: rgb(54 64 74 / 34%);
+  --scrollbar-thumb-hover: rgb(54 64 74 / 52%);
+  --scrollbar-track: transparent;
   font-family:
     -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
     "Segoe UI", sans-serif;
@@ -27,7 +30,38 @@
 }
 
 * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+* {
   box-sizing: border-box;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+*::-webkit-scrollbar-thumb {
+  min-height: 42px;
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: var(--scrollbar-thumb);
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 html,
@@ -413,6 +447,9 @@ select {
   --muted: #a1a1a6;
   --text: #f5f5f7;
   --accent-soft: rgb(10 132 255 / 18%);
+  --scrollbar-thumb: rgb(210 216 224 / 24%);
+  --scrollbar-thumb-hover: rgb(210 216 224 / 42%);
+  --scrollbar-track: transparent;
 }
 
 :root[data-theme="dark"] .app-toolbar,

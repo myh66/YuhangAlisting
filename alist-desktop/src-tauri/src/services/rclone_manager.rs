@@ -3,6 +3,7 @@ use crate::{
     services::{
         alist_manager::resolve_rclone_binary_path,
         logs::{emit_log, SharedLogBuffer},
+        process::{hide_std_command_window, hide_tokio_command_window},
     },
 };
 use serde::{Deserialize, Serialize};
@@ -222,6 +223,8 @@ impl RcloneManager {
             }
         }
 
+        hide_tokio_command_window(&mut command);
+
         let mut child = command
             .spawn()
             .map_err(|err| format!("start rclone mount failed: {err}"))?;
@@ -409,9 +412,11 @@ impl RcloneManager {
     }
 
     async fn obscure_password(&self, password: &str) -> Result<String, String> {
-        let output = Command::new(&self.rclone_path)
-            .arg("obscure")
-            .arg(password)
+        let mut command = Command::new(&self.rclone_path);
+        command.arg("obscure").arg(password);
+        hide_tokio_command_window(&mut command);
+
+        let output = command
             .output()
             .await
             .map_err(|err| format!("rclone obscure failed: {err}"))?;
@@ -553,8 +558,10 @@ fn spawn_log_reader<R>(
 fn open_path(path: &str) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
-        std::process::Command::new("explorer")
-            .arg(path)
+        let mut command = std::process::Command::new("explorer");
+        command.arg(path);
+        hide_std_command_window(&mut command);
+        command
             .spawn()
             .map_err(|err| format!("open path failed: {err}"))?;
     }

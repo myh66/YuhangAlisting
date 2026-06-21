@@ -1,4 +1,8 @@
-use crate::{config::AppConfig, services::logs::emit_log, AppState};
+use crate::{
+    config::AppConfig,
+    services::{logs::emit_log, process::hide_std_command_window},
+    AppState,
+};
 use serde::{Deserialize, Serialize};
 #[cfg(any(target_os = "macos", all(unix, not(target_os = "macos"))))]
 use std::{fs, path::PathBuf};
@@ -117,7 +121,7 @@ fn set_autostart_enabled(enabled: bool) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
         let key = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run";
-        let value = "AListDesktop";
+        let value = "YuhangAlisting";
 
         if enabled {
             let data = format!("\"{}\"", exe.display());
@@ -127,6 +131,7 @@ fn set_autostart_enabled(enabled: bool) -> Result<(), String> {
             )
         } else {
             let _ = run_command("reg", &["delete", key, "/v", value, "/f"]);
+            let _ = run_command("reg", &["delete", key, "/v", "AListDesktop", "/f"]);
             Ok(())
         }
     }
@@ -189,11 +194,7 @@ fn autostart_enabled() -> Result<bool, String> {
     #[cfg(target_os = "windows")]
     {
         let key = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run";
-        let output = Command::new("reg")
-            .args(["query", key, "/v", "AListDesktop"])
-            .output()
-            .map_err(|err| format!("query autostart failed: {err}"))?;
-        return Ok(output.status.success());
+        return Ok(reg_value_exists(key, "YuhangAlisting")? || reg_value_exists(key, "AListDesktop")?);
     }
 
     #[cfg(target_os = "macos")]
@@ -209,8 +210,11 @@ fn autostart_enabled() -> Result<bool, String> {
 
 #[cfg(target_os = "windows")]
 fn run_command(program: &str, args: &[&str]) -> Result<(), String> {
-    let status = Command::new(program)
-        .args(args)
+    let mut command = Command::new(program);
+    command.args(args);
+    hide_std_command_window(&mut command);
+
+    let status = command
         .status()
         .map_err(|err| format!("run {program} failed: {err}"))?;
 
@@ -219,6 +223,19 @@ fn run_command(program: &str, args: &[&str]) -> Result<(), String> {
     } else {
         Err(format!("{program} exited with status {status}"))
     }
+}
+
+#[cfg(target_os = "windows")]
+fn reg_value_exists(key: &str, value: &str) -> Result<bool, String> {
+    let mut command = Command::new("reg");
+    command.args(["query", key, "/v", value]);
+    hide_std_command_window(&mut command);
+
+    let output = command
+        .output()
+        .map_err(|err| format!("query autostart failed: {err}"))?;
+
+    Ok(output.status.success())
 }
 
 #[cfg(target_os = "macos")]

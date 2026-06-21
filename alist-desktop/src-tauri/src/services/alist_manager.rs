@@ -1,6 +1,9 @@
 use crate::{
     config::{app_data_dir, fallback_project_root, AppConfig},
-    services::logs::{emit_log, SharedLogBuffer},
+    services::{
+        logs::{emit_log, SharedLogBuffer},
+        process::hide_tokio_command_window,
+    },
 };
 use serde::Serialize;
 use std::{
@@ -185,13 +188,17 @@ impl AListManager {
         )
         .await;
 
-        let mut child = Command::new(&self.binary_path)
+        let mut command = Command::new(&self.binary_path);
+        command
             .arg("server")
             .arg("--data")
             .arg(&self.data_dir)
             .arg("--log-std")
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
+            .stderr(Stdio::piped());
+        hide_tokio_command_window(&mut command);
+
+        let mut child = command
             .spawn()
             .map_err(|err| format!("start alist process failed: {err}"))?;
 
@@ -272,10 +279,11 @@ impl AListManager {
     async fn run_admin_command(&self, args: &[&str]) -> Result<String, String> {
         self.ensure_binary_exists()?;
 
-        let output = Command::new(&self.binary_path)
-            .args(args)
-            .arg("--data")
-            .arg(&self.data_dir)
+        let mut command = Command::new(&self.binary_path);
+        command.args(args).arg("--data").arg(&self.data_dir);
+        hide_tokio_command_window(&mut command);
+
+        let output = command
             .output()
             .await
             .map_err(|err| format!("run alist admin command failed: {err}"))?;
@@ -356,12 +364,16 @@ impl AListManager {
         )
         .await;
 
-        let mut child = Command::new(&self.binary_path)
+        let mut command = Command::new(&self.binary_path);
+        command
             .arg("server")
             .arg("--data")
             .arg(&self.data_dir)
             .stdout(Stdio::null())
-            .stderr(Stdio::null())
+            .stderr(Stdio::null());
+        hide_tokio_command_window(&mut command);
+
+        let mut child = command
             .spawn()
             .map_err(|err| format!("bootstrap alist config failed: {err}"))?;
 

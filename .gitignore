@@ -2,6 +2,7 @@
 .claude/
 .reference/
 AList-Desktop-Plan.md
+release-test/
 
 alist-desktop/node_modules/
 alist-desktop/.yarn/install-state.gz

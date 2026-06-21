@@ -1,6 +1,7 @@
 use crate::{
-    services::alist_manager::{
-        bundled_binary_path, resolve_alist_binary_path, resolve_rclone_binary_path,
+    services::{
+        alist_manager::{bundled_binary_path, resolve_alist_binary_path, resolve_rclone_binary_path},
+        process::hide_std_command_window,
     },
     AppState,
 };
@@ -154,8 +155,11 @@ fn install_winfsp_msi(installer: &Path) -> Result<(), String> {
         installer_arg
     );
 
-    std::process::Command::new("powershell.exe")
-        .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", &command])
+    let mut powershell = std::process::Command::new("powershell.exe");
+    powershell.args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", &command]);
+    hide_std_command_window(&mut powershell);
+
+    powershell
         .spawn()
         .map_err(|err| format!("launch WinFsp installer failed: {err}"))?;
 

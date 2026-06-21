@@ -3,7 +3,7 @@ mod config;
 mod services;
 mod tray;
 
-use config::ConfigStore;
+use config::{CloseAction, ConfigStore};
 use services::{
     alist_manager::AListManager,
     logs::{shared_log_buffer, SharedLogBuffer},
@@ -80,13 +80,31 @@ pub fn run() {
             commands::system::get_platform_info,
             commands::system::get_runtime_readiness,
             commands::system::get_winfsp_status,
-            commands::system::install_winfsp
+            commands::system::install_winfsp,
+            commands::system::hide_main_window,
+            commands::system::exit_app
         ])
         .on_window_event(|window, event| {
             if window.label() == "main" {
                 if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                     api.prevent_close();
-                    let _ = window.hide();
+                    let app = window.app_handle().clone();
+                    tauri::async_runtime::spawn(async move {
+                        let state = app.state::<AppState>();
+                        let close_action = state.config.lock().await.get().close_action;
+
+                        match close_action {
+                            CloseAction::Minimize => {
+                                if let Some(window) = app.get_webview_window("main") {
+                                    let _ = window.hide();
+                                }
+                            }
+                            CloseAction::Exit => app.exit(0),
+                            CloseAction::Ask => {
+                                let _ = app.emit("app-close-requested", ());
+                            }
+                        }
+                    });
                 }
             }
         })

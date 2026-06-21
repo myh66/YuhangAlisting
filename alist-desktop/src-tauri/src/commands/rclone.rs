@@ -25,7 +25,7 @@ pub async fn update_mount(
     config: MountConfig,
 ) -> Result<MountInfo, String> {
     let mut rclone = state.rclone.lock().await;
-    rclone.update(config)
+    rclone.update(config).await
 }
 
 #[tauri::command]

@@ -7,7 +7,7 @@ use crate::{
 };
 use serde::Serialize;
 use std::path::{Path, PathBuf};
-use tauri::State;
+use tauri::{Manager, State};
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -89,6 +89,21 @@ pub async fn install_winfsp(state: State<'_, AppState>) -> Result<(), String> {
         .ok_or_else(|| "WinFsp installer not bundled. Run yarn prebuild --force before building.".to_string())?;
 
     install_winfsp_msi(&installer)
+}
+
+#[tauri::command]
+pub async fn hide_main_window(state: State<'_, AppState>) -> Result<(), String> {
+    let Some(window) = state.app.get_webview_window("main") else {
+        return Ok(());
+    };
+
+    window.hide().map_err(|err| format!("hide window failed: {err}"))
+}
+
+#[tauri::command]
+pub async fn exit_app(state: State<'_, AppState>) -> Result<(), String> {
+    state.app.exit(0);
+    Ok(())
 }
 
 fn platform_info() -> PlatformInfo {

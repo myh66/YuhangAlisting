@@ -5,6 +5,7 @@ export type MountStatus = "mounted" | "mounting" | "unmounted" | "error";
 export type CacheMode = "off" | "minimal" | "writes" | "full";
 export type ThemeMode = "light" | "dark" | "system";
 export type Language = "zh-CN" | "en-US";
+export type CloseAction = "ask" | "minimize" | "exit";
 
 export interface ServiceInfo {
   status: ServiceStatusKind;
@@ -51,6 +52,7 @@ export interface AppConfig {
   rcloneBinaryPath?: string | null;
   checkUpdates: boolean;
   startMinimized: boolean;
+  closeAction: CloseAction;
 }
 
 export interface ReleaseInfo {
@@ -131,4 +133,6 @@ export const systemApi = {
   readiness: () => invoke<RuntimeReadiness>("get_runtime_readiness"),
   winfspStatus: () => invoke<WinFspStatus>("get_winfsp_status"),
   installWinFsp: () => invoke<void>("install_winfsp"),
+  hideMainWindow: () => invoke<void>("hide_main_window"),
+  exitApp: () => invoke<void>("exit_app"),
 };

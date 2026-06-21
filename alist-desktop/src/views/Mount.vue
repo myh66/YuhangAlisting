@@ -47,8 +47,23 @@ function resetForm() {
 async function saveMount() {
   try {
     if (editing.value) {
+      const currentMount = mountStore.mounts.find((mount) => mount.id === form.value.id);
+      const needsRemount =
+        currentMount?.status === "mounted" &&
+        (currentMount.name !== form.value.name ||
+          currentMount.remotePath !== form.value.remotePath ||
+          currentMount.localPath !== form.value.localPath ||
+          currentMount.cacheMode !== form.value.cacheMode ||
+          currentMount.bufferSize !== form.value.bufferSize ||
+          currentMount.vfsCacheMaxAge !== form.value.vfsCacheMaxAge ||
+          currentMount.readOnly !== form.value.readOnly);
+
       await mountStore.update(form.value);
-      message.success(settingsStore.t("mount.updated"));
+      if (needsRemount) {
+        message.warning(settingsStore.t("mount.updatedNeedsRemount"));
+      } else {
+        message.success(settingsStore.t("mount.updated"));
+      }
     } else {
       await mountStore.create(form.value);
       message.success(settingsStore.t("mount.saved"));
@@ -205,7 +220,7 @@ function statusLabel(status: MountInfo["status"]) {
             <n-input v-model:value="form.name" :placeholder="settingsStore.t('mount.form.namePlaceholder')" />
           </n-form-item-gi>
           <n-form-item-gi :label="settingsStore.t('mount.form.remotePath')">
-            <n-input v-model:value="form.remotePath" placeholder="/aliyundrive" />
+            <n-input v-model:value="form.remotePath" placeholder="/" />
           </n-form-item-gi>
           <n-form-item-gi :label="settingsStore.t('mount.form.localPath')">
             <n-input v-model:value="form.localPath" :placeholder="mountStore.platform?.defaultMountHint ?? 'Z:'" />

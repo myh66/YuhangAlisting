@@ -23,6 +23,12 @@ const languageOptions = computed(() => [
   { label: settingsStore.t("settings.language.en-US"), value: "en-US" },
 ]);
 
+const closeActionOptions = computed(() => [
+  { label: settingsStore.t("settings.close.ask"), value: "ask" },
+  { label: settingsStore.t("settings.close.minimize"), value: "minimize" },
+  { label: settingsStore.t("settings.close.exit"), value: "exit" },
+]);
+
 onMounted(async () => {
   await settingsStore.load();
   await refreshWinFsp();
@@ -49,6 +55,15 @@ async function saveSettings() {
   try {
     await settingsStore.save();
     message.success(settingsStore.t("settings.saved"));
+  } catch (err) {
+    message.error(err instanceof Error ? err.message : String(err));
+  }
+}
+
+async function saveToggle() {
+  try {
+    await settingsStore.save();
+    message.success(settingsStore.t("settings.toggle.saved"));
   } catch (err) {
     message.error(err instanceof Error ? err.message : String(err));
   }
@@ -114,10 +129,18 @@ async function checkUpdates() {
           <n-input-number v-model:value="settingsStore.config.alistPort" :min="1" :max="65535" />
         </n-form-item>
         <n-form-item :label="settingsStore.t('settings.app.autoStartAlist')">
-          <n-switch v-model:value="settingsStore.config.autoStartAlist" />
+          <n-switch
+            v-model:value="settingsStore.config.autoStartAlist"
+            :loading="settingsStore.loading"
+            @update:value="saveToggle"
+          />
         </n-form-item>
         <n-form-item :label="settingsStore.t('settings.app.autoMount')">
-          <n-switch v-model:value="settingsStore.config.autoMount" />
+          <n-switch
+            v-model:value="settingsStore.config.autoMount"
+            :loading="settingsStore.loading"
+            @update:value="saveToggle"
+          />
         </n-form-item>
         <n-form-item :label="settingsStore.t('settings.app.autostart')">
           <n-switch
@@ -133,10 +156,17 @@ async function checkUpdates() {
           <n-select v-model:value="settingsStore.config.language" :options="languageOptions" />
         </n-form-item>
         <n-form-item :label="settingsStore.t('settings.app.startMinimized')">
-          <n-switch v-model:value="settingsStore.config.startMinimized" />
+          <n-switch
+            v-model:value="settingsStore.config.startMinimized"
+            :loading="settingsStore.loading"
+            @update:value="saveToggle"
+          />
         </n-form-item>
         <n-form-item :label="settingsStore.t('settings.app.checkUpdates')">
           <n-switch v-model:value="settingsStore.config.checkUpdates" />
+        </n-form-item>
+        <n-form-item :label="settingsStore.t('settings.app.closeAction')">
+          <n-select v-model:value="settingsStore.config.closeAction" :options="closeActionOptions" />
         </n-form-item>
         <n-form-item :label="settingsStore.t('settings.app.alistBinaryPath')">
           <n-input

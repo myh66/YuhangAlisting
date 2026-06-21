@@ -13,7 +13,7 @@ export function createEmptyMount(defaultLocalPath = "Z:"): MountConfig {
   return {
     id: "",
     name: "",
-    remotePath: "/",
+    remotePath: "",
     localPath: defaultLocalPath,
     autoMount: false,
     cacheMode: "full",

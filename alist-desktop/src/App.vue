@@ -1,17 +1,21 @@
 <script setup lang="ts">
-import { computed, h, onMounted, onUnmounted, watch } from "vue";
+import { computed, h, onMounted, onUnmounted, ref, watch } from "vue";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { RouterLink, RouterView, useRoute } from "vue-router";
 import type { MenuOption } from "naive-ui";
 import { Activity, FileText, HardDrive, Settings } from "lucide-vue-next";
 import appIcon from "./assets/app-icon.png";
 import { useServiceStore } from "./stores/service";
 import { useSettingsStore } from "./stores/settings";
-import type { Language } from "./utils/tauri";
+import { systemApi, type CloseAction, type Language } from "./utils/tauri";
 
 const route = useRoute();
 const serviceStore = useServiceStore();
 const settingsStore = useSettingsStore();
 const colorScheme = window.matchMedia?.("(prefers-color-scheme: dark)");
+const closeModalVisible = ref(false);
+const rememberCloseChoice = ref(false);
+let unlistenCloseRequested: UnlistenFn | null = null;
 
 const navItems = computed(() => [
   { label: settingsStore.t("dashboard"), key: "dashboard", path: "/dashboard", icon: Activity },
@@ -59,15 +63,40 @@ async function setLanguage(language: Language) {
   }
 }
 
+async function handleCloseAction(action: Extract<CloseAction, "minimize" | "exit">) {
+  if (rememberCloseChoice.value) {
+    settingsStore.config.closeAction = action;
+    try {
+      await settingsStore.save();
+    } catch {
+      settingsStore.config.closeAction = "ask";
+    }
+  }
+
+  closeModalVisible.value = false;
+  rememberCloseChoice.value = false;
+
+  if (action === "minimize") {
+    await systemApi.hideMainWindow();
+  } else {
+    await systemApi.exitApp();
+  }
+}
+
 onMounted(async () => {
   await settingsStore.load();
   await serviceStore.startStatusListener();
   await serviceStore.refresh();
+  unlistenCloseRequested = await listen("app-close-requested", () => {
+    rememberCloseChoice.value = false;
+    closeModalVisible.value = true;
+  });
   colorScheme?.addEventListener("change", settingsStore.applyDocumentTheme);
 });
 
 onUnmounted(() => {
   colorScheme?.removeEventListener("change", settingsStore.applyDocumentTheme);
+  unlistenCloseRequested?.();
 });
 
 watch(
@@ -138,7 +167,42 @@ watch(
             </section>
           </main>
         </div>
+
+        <n-modal
+          v-model:show="closeModalVisible"
+          preset="card"
+          :title="settingsStore.t('app.close.title')"
+          class="close-modal"
+          :mask-closable="false"
+        >
+          <n-space vertical :size="16">
+            <p class="close-copy">{{ settingsStore.t("app.close.content") }}</p>
+            <n-checkbox v-model:checked="rememberCloseChoice">
+              {{ settingsStore.t("app.close.remember") }}
+            </n-checkbox>
+            <n-space justify="end">
+              <n-button secondary @click="handleCloseAction('minimize')">
+                {{ settingsStore.t("app.close.minimize") }}
+              </n-button>
+              <n-button type="primary" @click="handleCloseAction('exit')">
+                {{ settingsStore.t("app.close.exit") }}
+              </n-button>
+            </n-space>
+          </n-space>
+        </n-modal>
       </n-dialog-provider>
     </n-message-provider>
   </n-config-provider>
 </template>
+
+<style scoped>
+.close-modal {
+  width: min(420px, calc(100vw - 32px));
+}
+
+.close-copy {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+</style>

@@ -14,6 +14,7 @@ pub struct AppConfig {
     pub rclone_binary_path: Option<String>,
     pub check_updates: bool,
     pub start_minimized: bool,
+    pub close_action: CloseAction,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -30,6 +31,14 @@ pub enum Language {
     ZhCn,
     #[serde(rename = "en-US")]
     EnUs,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum CloseAction {
+    Ask,
+    Minimize,
+    Exit,
 }
 
 pub struct ConfigStore {
@@ -78,6 +87,7 @@ impl Default for AppConfig {
             rclone_binary_path: None,
             check_updates: true,
             start_minimized: false,
+            close_action: CloseAction::Ask,
         }
     }
 }

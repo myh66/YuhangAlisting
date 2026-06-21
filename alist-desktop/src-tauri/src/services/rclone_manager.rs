@@ -125,15 +125,33 @@ impl RcloneManager {
         Ok(self.to_mount_info(&config))
     }
 
-    pub fn update(&mut self, mut config: MountConfig) -> Result<MountInfo, String> {
+    pub async fn update(&mut self, mut config: MountConfig) -> Result<MountInfo, String> {
         normalize_mount_config(&mut config);
         validate_mount_config(&config)?;
 
-        let Some(existing) = self.configs.iter_mut().find(|item| item.id == config.id) else {
+        let Some(existing_index) = self.configs.iter().position(|item| item.id == config.id) else {
             return Err(format!("mount not found: {}", config.id));
         };
 
-        *existing = config.clone();
+        let existing = self.configs[existing_index].clone();
+        let needs_remount = existing.name != config.name
+            || existing.remote_path != config.remote_path
+            || existing.local_path != config.local_path
+            || existing.cache_mode.as_rclone_arg() != config.cache_mode.as_rclone_arg()
+            || existing.buffer_size != config.buffer_size
+            || existing.vfs_cache_max_age != config.vfs_cache_max_age
+            || existing.read_only != config.read_only;
+        let was_mounted = self
+            .mounts
+            .get(&config.id)
+            .is_some_and(|instance| matches!(instance.status, MountStatus::Mounted | MountStatus::Mounting));
+
+        if was_mounted && needs_remount {
+            let id = config.id.clone();
+            self.unmount(&id).await?;
+        }
+
+        self.configs[existing_index] = config.clone();
         self.flush()?;
         Ok(self.to_mount_info(&config))
     }

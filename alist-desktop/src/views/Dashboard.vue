@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, nextTick, onMounted, ref } from "vue";
 import { useIntervalFn } from "@vueuse/core";
 import { useMessage } from "naive-ui";
 import { ExternalLink, KeyRound, Play, RefreshCcw, RotateCw, Square, Wrench } from "lucide-vue-next";
@@ -18,6 +18,7 @@ const message = useMessage();
 const readiness = ref<RuntimeReadiness | null>(null);
 const passwordModalVisible = ref(false);
 const passwordValue = ref("");
+const passwordInputRef = ref<HTMLInputElement | null>(null);
 const serviceStatusLabel = computed(() =>
   settingsStore.t(`status.${serviceStore.statusKind}`),
 );
@@ -91,6 +92,13 @@ async function confirmAutoMount() {
 function openAutoMountPassword() {
   passwordValue.value = getCachedAdminPassword();
   passwordModalVisible.value = true;
+  focusPasswordInput();
+}
+
+async function focusPasswordInput() {
+  await nextTick();
+  passwordInputRef.value?.focus();
+  passwordInputRef.value?.select();
 }
 
 function mountStatusLabel(status: string) {
@@ -254,15 +262,15 @@ function mountStatusLabel(status: string) {
           <n-button quaternary circle @click="passwordModalVisible = false">×</n-button>
         </header>
         <div class="app-dialog-body">
-          <n-input
-            v-model:value="passwordValue"
+          <input
+            ref="passwordInputRef"
+            v-model="passwordValue"
+            class="app-password-input"
             type="password"
-            show-password-on="click"
-            clearable
             autofocus
             :placeholder="settingsStore.t('dashboard.passwordModal.placeholder')"
             @keyup.enter="confirmAutoMount"
-          />
+          >
           <n-alert type="info" :show-icon="false">
             {{ settingsStore.t("dashboard.passwordModal.hint") }}
           </n-alert>

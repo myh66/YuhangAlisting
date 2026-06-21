@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, nextTick, onMounted, ref } from "vue";
 import { useDialog, useMessage } from "naive-ui";
 import { FolderOpen, Plus, RefreshCcw, Save, Trash2 } from "lucide-vue-next";
 import {
@@ -21,6 +21,7 @@ const form = ref<MountConfig>(createEmptyMount());
 const editing = computed(() => form.value.id.length > 0);
 const passwordModalVisible = ref(false);
 const passwordValue = ref("");
+const passwordInputRef = ref<HTMLInputElement | null>(null);
 const pendingMountId = ref<string | null>(null);
 const isWindows = computed(() => mountStore.platform?.os === "windows");
 
@@ -120,12 +121,20 @@ function mountWithPassword(id: string) {
   pendingMountId.value = id;
   passwordValue.value = getCachedAdminPassword();
   passwordModalVisible.value = true;
+  focusPasswordInput();
 }
 
 function mountAutoWithPassword() {
   pendingMountId.value = null;
   passwordValue.value = getCachedAdminPassword();
   passwordModalVisible.value = true;
+  focusPasswordInput();
+}
+
+async function focusPasswordInput() {
+  await nextTick();
+  passwordInputRef.value?.focus();
+  passwordInputRef.value?.select();
 }
 
 async function confirmMountPassword() {
@@ -283,15 +292,15 @@ function statusLabel(status: MountInfo["status"]) {
           <n-button quaternary circle @click="passwordModalVisible = false">×</n-button>
         </header>
         <div class="app-dialog-body">
-          <n-input
-            v-model:value="passwordValue"
+          <input
+            ref="passwordInputRef"
+            v-model="passwordValue"
+            class="app-password-input"
             type="password"
-            show-password-on="click"
-            clearable
             autofocus
             :placeholder="settingsStore.t('mount.passwordModal.placeholder')"
             @keyup.enter="confirmMountPassword"
-          />
+          >
           <n-alert type="info" :show-icon="false">
             {{ settingsStore.t("mount.passwordModal.hint") }}
           </n-alert>

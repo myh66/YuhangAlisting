@@ -461,6 +461,27 @@ select {
   gap: 14px;
 }
 
+.app-password-input {
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid rgb(96 236 196 / 86%);
+  border-radius: 8px;
+  outline: none;
+  background: rgb(255 255 255 / 74%);
+  color: var(--text);
+  box-shadow: 0 0 0 3px rgb(96 236 196 / 10%);
+}
+
+.app-password-input:focus {
+  border-color: #62e8c6;
+  box-shadow: 0 0 0 3px rgb(96 236 196 / 20%);
+}
+
+.app-password-input::placeholder {
+  color: var(--muted);
+}
+
 .app-dialog-actions {
   display: flex;
   justify-content: flex-end;
@@ -517,4 +538,8 @@ select {
 
 :root[data-theme="dark"] .check-item.ok {
   background: rgb(33 57 43 / 62%);
+}
+
+:root[data-theme="dark"] .app-password-input {
+  background: rgb(39 57 53 / 86%);
 }

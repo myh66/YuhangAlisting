@@ -30,8 +30,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: yarn
-          cache-dependency-path: alist-desktop/yarn.lock
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -47,7 +45,9 @@ jobs:
             patchelf
 
       - name: Enable Corepack
-        run: corepack enable
+        run: |
+          corepack enable
+          corepack prepare yarn@4.9.2 --activate
 
       - name: Install dependencies
         run: yarn install --immutable
@@ -86,8 +86,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: yarn
-          cache-dependency-path: alist-desktop/yarn.lock
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -103,7 +101,9 @@ jobs:
             patchelf
 
       - name: Enable Corepack
-        run: corepack enable
+        run: |
+          corepack enable
+          corepack prepare yarn@4.9.2 --activate
 
       - name: Install dependencies
         run: yarn install --immutable

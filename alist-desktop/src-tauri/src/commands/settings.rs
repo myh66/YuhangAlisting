@@ -2,6 +2,8 @@ use crate::{config::AppConfig, services::logs::emit_log, AppState};
 use serde::{Deserialize, Serialize};
 #[cfg(any(target_os = "macos", all(unix, not(target_os = "macos"))))]
 use std::{fs, path::PathBuf};
+#[cfg(target_os = "windows")]
+use std::process::Command;
 use tauri::State;
 
 #[derive(Debug, Clone, Serialize)]

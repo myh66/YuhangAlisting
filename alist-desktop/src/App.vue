@@ -168,27 +168,25 @@ watch(
           </main>
         </div>
 
-        <n-modal
-          v-model:show="closeModalVisible"
-          preset="card"
-          :title="settingsStore.t('app.close.title')"
-          class="close-modal"
-          :mask-closable="false"
-        >
-          <n-space vertical :size="16">
+        <n-modal v-model:show="closeModalVisible" :mask-closable="false">
+          <section class="close-modal">
+            <header class="close-modal-header">
+              <h2>{{ settingsStore.t("app.close.title") }}</h2>
+              <n-button quaternary circle @click="closeModalVisible = false">×</n-button>
+            </header>
             <p class="close-copy">{{ settingsStore.t("app.close.content") }}</p>
             <n-checkbox v-model:checked="rememberCloseChoice">
               {{ settingsStore.t("app.close.remember") }}
             </n-checkbox>
-            <n-space justify="end">
+            <footer class="close-actions">
               <n-button secondary @click="handleCloseAction('minimize')">
                 {{ settingsStore.t("app.close.minimize") }}
               </n-button>
               <n-button type="primary" @click="handleCloseAction('exit')">
                 {{ settingsStore.t("app.close.exit") }}
               </n-button>
-            </n-space>
-          </n-space>
+            </footer>
+          </section>
         </n-modal>
       </n-dialog-provider>
     </n-message-provider>
@@ -198,11 +196,37 @@ watch(
 <style scoped>
 .close-modal {
   width: min(420px, calc(100vw - 32px));
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.34);
+}
+
+.close-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.close-modal-header h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 750;
 }
 
 .close-copy {
   margin: 0;
   color: var(--muted);
   line-height: 1.6;
+}
+
+.close-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 22px;
 }
 </style>

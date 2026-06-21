@@ -181,6 +181,7 @@ impl RcloneManager {
 
         self.ensure_rclone_binary_exists()?;
         validate_mount_target(&config.local_path)?;
+        self.release_stale_mount_target(&config).await;
 
         if let Some(instance) = self.mounts.get(id) {
             if matches!(
@@ -237,7 +238,7 @@ impl RcloneManager {
             if config.local_path.len() == 2 && config.local_path.ends_with(':') {
                 command.arg("--network-mode");
                 command.arg("--volname");
-                command.arg(format!("AList-{}", sanitize_volume_name(&config.name)));
+                command.arg(windows_volume_name(&config));
             }
         }
 
@@ -276,7 +277,23 @@ impl RcloneManager {
             },
         );
 
-        self.list().await
+        tokio::time::sleep(std::time::Duration::from_millis(700)).await;
+        self.refresh_mounts().await?;
+
+        if let Some(instance) = self.mounts.get(id) {
+            if matches!(instance.status, MountStatus::Error | MountStatus::Unmounted) {
+                let detail = instance
+                    .error
+                    .clone()
+                    .unwrap_or_else(|| "rclone exited before the mount became ready".to_string());
+                self.cleanup_failed_mount_target(&config).await;
+                return Err(format!(
+                    "{detail}. Check that the AList path exists and the local drive letter is free."
+                ));
+            }
+        }
+
+        Ok(self.to_mount_infos())
     }
 
     pub async fn unmount(&mut self, id: &str) -> Result<Vec<MountInfo>, String> {
@@ -452,6 +469,35 @@ impl RcloneManager {
             Ok(obscured)
         }
     }
+
+    async fn release_stale_mount_target(&self, config: &MountConfig) {
+        #[cfg(target_os = "windows")]
+        {
+            if !is_windows_drive_letter(&config.local_path) {
+                return;
+            }
+
+            let volume_name = windows_volume_name(config);
+            let _ = run_std_command("net", &["use", &config.local_path, "/delete", "/y"]);
+            let _ = volume_name;
+        }
+
+        #[cfg(not(target_os = "windows"))]
+        {
+            let _ = config;
+        }
+    }
+
+    async fn cleanup_failed_mount_target(&mut self, config: &MountConfig) {
+        #[cfg(target_os = "windows")]
+        {
+            if is_windows_drive_letter(&config.local_path) {
+                let _ = run_std_command("net", &["use", &config.local_path, "/delete", "/y"]);
+            }
+        }
+
+        let _ = self.unmount(&config.id).await;
+    }
 }
 
 impl CacheMode {
@@ -528,7 +574,7 @@ fn validate_mount_target(local_path: &str) -> Result<(), String> {
 fn prepare_mount_target(local_path: &str) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
-        if local_path.len() == 2 && local_path.ends_with(':') {
+        if is_windows_drive_letter(local_path) {
             return Ok(());
         }
     }
@@ -539,11 +585,13 @@ fn prepare_mount_target(local_path: &str) -> Result<(), String> {
 fn normalized_remote_path(remote_path: &str) -> String {
     let trimmed = remote_path.trim();
 
-    if trimmed.starts_with('/') {
+    let normalized = if trimmed.starts_with('/') {
         trimmed.to_string()
     } else {
         format!("/{trimmed}")
-    }
+    };
+
+    normalized.to_lowercase()
 }
 
 fn new_mount_id() -> String {
@@ -617,5 +665,33 @@ fn sanitize_volume_name(name: &str) -> String {
         "Mount".to_string()
     } else {
         sanitized
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn is_windows_drive_letter(path: &str) -> bool {
+    let path = path.trim();
+    path.len() == 2 && path.ends_with(':') && path.as_bytes()[0].is_ascii_alphabetic()
+}
+
+#[cfg(target_os = "windows")]
+fn windows_volume_name(config: &MountConfig) -> String {
+    format!("AList-{}", sanitize_volume_name(&config.name))
+}
+
+#[cfg(target_os = "windows")]
+fn run_std_command(program: &str, args: &[&str]) -> Result<(), String> {
+    let mut command = std::process::Command::new(program);
+    command.args(args);
+    hide_std_command_window(&mut command);
+
+    let status = command
+        .status()
+        .map_err(|err| format!("run {program} failed: {err}"))?;
+
+    if status.success() {
+        Ok(())
+    } else {
+        Err(format!("{program} exited with status {status}"))
     }
 }
